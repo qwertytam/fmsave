@@ -1,9 +1,6 @@
 # Package specific
-data*/
-*.html
 .DS_Store
 debug.log*
-tmpf*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -14,7 +14,7 @@ import requests
 from geonames import GeoNames
 from geonames import (GeoNamesDateReturnError, GeoNamesStopError)
 from geonames import EMPTY_TZ_DICT
-from datetime import datetime as dt
+# from datetime import datetime as dt
 
 import logging
 
@@ -214,7 +214,7 @@ class FMDownloader:
         _check_create_path(save_path)
 
         for page_num, page in enumerate(self.pages):
-            fn = f'{prefix}{page_num+1}.{fext}'
+            fn = f'{prefix}{page_num+1:04d}.{fext}'
             fp = Path(save_path, fn)
             self.logger.debug(f"Saving page number {page_num + 1} as {fp}")
             with open(fp, 'w') as f:
@@ -225,7 +225,7 @@ class FMDownloader:
     def read_fm_pages(self, save_path, fext='html'):
         """
         Read in Flight Memory html pages from disk
-        
+
         Appends pages to existing self.pages data structure
         
         Args:
@@ -476,7 +476,7 @@ class FMDownloader:
             self.logger.info(f"find_tz for {leg}: {lat} {lon} {date}")
             
             valid_posn = not(math.isnan(lat) or math.isnan(lon))
-            valid_date = valid_date_pat.match(date)
+            valid_date = valid_date_pat.match(str(date))
             
             if valid_date and valid_posn:
                 try:

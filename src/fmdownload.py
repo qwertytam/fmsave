@@ -129,7 +129,7 @@ class FMDownloader:
 
         wait.until(EC.element_to_be_clickable(
             (By.XPATH, ".//input[@value='SignIn' and @type='submit']"))).click()
-        self.logger.debug("Entered login credentials")
+        self.logger.info("Entered login credentials")
 
         try:
             wait.until(EC.element_to_be_clickable(
@@ -181,7 +181,7 @@ class FMDownloader:
 
         while _max_loops(loop_counter):
             loop_counter += 1
-            self.logger.debug(f"Entering loop {loop_counter}")
+            self.logger.info(f"Entering loop {loop_counter}")
             self._get_outer_html()
 
             try:
@@ -189,12 +189,12 @@ class FMDownloader:
                 self.logger.debug(f"Found page for next loop at counter {loop_counter}")
 
             except TimeoutException:
-                self.logger.debug("TimeoutException; assuming at last page. "
+                self.logger.info("TimeoutException; assuming at last page. "
                                   f"Ending at loop {loop_counter}")
                 break
         
         if not _max_loops(loop_counter):
-            self.logger.debug(f"Exited loop as hit max for loop counter {loop_counter}")
+            self.logger.info(f"Exited loop as hit max for loop counter {loop_counter}")
 
         found_pages = len(self.pages) - pages_len
         pages_len = len(self.pages)
@@ -219,7 +219,7 @@ class FMDownloader:
             with open(fp, 'w') as f:
                 f.write(page)
 
-        self.logger.debug(f"Saved {page_num + 1} pages")
+        self.logger.info(f"Saved {page_num + 1} pages")
 
     def read_fm_pages(self, save_path, fext='html'):
         """
@@ -233,7 +233,7 @@ class FMDownloader:
         """
         self.logger.debug(f"Scanning path: {save_path} for {fext}")
         page_files = list(Path(save_path).glob(f'*.{fext}'))
-        self.logger.debug(f"Found {len(page_files)} pages")
+        self.logger.info(f"Found {len(page_files)} pages")
         
         for page_num, page_file in enumerate(page_files):
             self.logger.debug(f"Reading page {page_num+1}: {page_file}")
@@ -241,17 +241,46 @@ class FMDownloader:
             with open(page_file, 'r') as f:
                 self.pages.append(f.read())
         
-        self.logger.debug(f"self.pages now length {len(self.pages)}")
+        self.logger.info(f"self.pages now length {len(self.pages)}")
 
 
     def _split_date_col(self):
         self.logger.debug(f"_split_date_col()")
+
+        # Column has the following formats
+        # Year only: YYYY or in regex r'^\d{4}'
+        # Date only: DD-MM-YYYY or r'^\d{2}\.\d{2}\.\d{4}$'
+        # Date with time: DD-MM-YYYY HH:MM or r'^\d{2}\.\d{2}\.\d{4}\s+\d{2}\:\d{2}$'
+        # Date, time with day offset: DD-MM-YYYY HH:MM +/-D or r'^\d{2}\.\d{2}\.\d{4}\s+\d{2}\:\d{2}\s+\d{2}\:\d{2}\s+(?:\+|\-)\d)$'
+        # Date with day offset: DD-MM-YYYY +/-D or r'^\d{2}\.\d{2}\.\d{4}\s+(?:\+|\-)\d)$'
+        # Note there may be multiple spaces due to the collapsing of new lines
+        
+        # For the date with day offset case, need to ensure there are three
+        # spaces for when we split into four columns
+        pat = r'^(\d{2}\.\d{2}\.\d{4})\s+((?:\+|\-)\d)'
+        repl = r'\1   \2'
+        self.df['date_dept_arr_offset'] = self.df['date_dept_arr_offset']\
+            .str.replace(pat=pat, repl=repl, regex=True)
+        
         self.df[
             ['date',
              'dep_time',
              'arr_time',
              'date_offset']] = self.df['date_dept_arr_offset']\
                  .str.split(' ', expand=True)
+
+        cols = [
+            'date_dept_arr_offset',
+            'date',
+            'dep_time',
+            'arr_time',
+            'date_offset']
+        self.df[cols] = self.df[cols].fillna(value='')
+        
+        pat = r'^\s*$'
+        repl = '0'
+        self.df['date_offset'] = self.df['date_offset']\
+            .str.replace(pat=pat, repl=repl, regex=True)
 
 
     def _split_dist_col(self):
@@ -301,20 +330,19 @@ class FMDownloader:
 
 
     def _dates_to_dt(self):
-        self.logger.debug(f"_dates_to_dt()")
-        self.df['dep_time'] = self.df['date'] +\
-            ' ' + self.df['dep_time']
-        self.df['arr_time'] = self.df['date'] +\
-            ' ' + self.df['arr_time']
-
-        self.df['dep_time'] = pd.to_datetime(
-            self.df['dep_time'], format='%d.%m.%Y %H:%M')
-        self.df['arr_time'] = pd.to_datetime(
-            self.df['arr_time'], format='%d.%m.%Y %H:%M')
+        self.logger.info(f"_dates_to_dt()")
         
-        self.df['date_offset'].replace({None: 0}, inplace=True)
+        time_cols = ['dep_time', 'arr_time']
+        for col in time_cols:
+            time_is_empty =  self.df[col] == ''
+            self.df.loc[~time_is_empty, col] = self.df.loc[~time_is_empty,'date'] +\
+            ' ' + self.df.loc[~time_is_empty, col]
+            self.df[col] = pd.to_datetime(self.df[col],
+                                          format='mixed',
+                                          dayfirst=True)
+        
         self.df['date_offset'] = pd.to_timedelta(
-            pd.to_numeric (self.df['date_offset']), unit='days')
+            pd.to_numeric(self.df['date_offset']), unit='days')
         self.df['arr_time'] = self.df['arr_time'] \
             + self.df['date_offset']
 
@@ -431,6 +459,8 @@ class FMDownloader:
             tzid_col = f"{leg}_tzid"
             gmtoffset_col = f"{leg}_gmtoffset"
             
+            self.logger.info(f"find_tz for {leg}: {row[legs[leg]['lat']]} {row[legs[leg]['lon']]} {row[legs[leg]['date']]}")
+            
             try:
                 tz = gn.find_tz(row[legs[leg]['lat']],
                                 row[legs[leg]['lon']],
@@ -490,7 +520,7 @@ class FMDownloader:
 
             if update_blanks_only and blank_row_test:
                 try:
-                    self.logger.info(f"Updating index {index}")
+                    self.logger.info(f"Updating index {index} {row}")
                     row = self._add_tz(row, gnusername=gnusername)
                     for tz_col in tz_cols:
                         self.df.loc[index, tz_col] = row[tz_col]
@@ -517,7 +547,7 @@ class FMDownloader:
         """
         _check_create_path(save_path)
         fp = Path(save_path, save_fn)
-        self.logger.debug(f"Saving self.df to {fp}")
+        self.logger.info(f"Saving self.df to {fp}")
         self.df.to_csv(fp, index=False)
     
     def read_pandas_from_csv(self, save_path, save_fn='flights.csv'):
@@ -529,7 +559,7 @@ class FMDownloader:
             save_fn: File name read in
         """
         fp = Path(save_path, save_fn)
-        self.logger.debug(f"Reading self.df from {fp}")
+        self.logger.info(f"Reading self.df from {fp}")
         datetime_cols = [
             'dep_time',
             'arr_time',

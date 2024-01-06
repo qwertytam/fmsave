@@ -1,6 +1,6 @@
 """
 Usage:
-  fmsave.py FMUSERNAME GNUSERNAME CHROME_PATH SAVE_PATH (dlhtml | topd) [--max-html-pages=MAXPAGES]
+  fmsave.py FMUSERNAME GNUSERNAME CHROME_PATH SAVE_PATH (dlhtml | topd) [--max-html-pages=MAXPAGES] [--csvfn=CSVFN]
   fmsave.py -h | --help
 
 Arguments:
@@ -13,7 +13,9 @@ Commands:
   topd      Convert html into a pandas dataframe; this or `dlhtml` required
 
 Options:
-  -h --help     Show this screen
+  -h --help                     Show this screen
+  --csvfn=CSVFN                 CSV file name for pandas save
+  --max-html-pages=MAXPAGES     Maximum number of html pages to download and save
 
 """
 
@@ -61,23 +63,26 @@ if __name__ == '__main__':
         if max_pages is not None:
                 max_pages = int(max_pages)
         
-        fm_pw = getpass.getpass(prompt="Flight Memory password:")
+        csv_fn = args['--csvfn']
+        if csv_fn is None:
+                csv_fn = 'flights.csv'
         
         fd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
 
-        # Download and save pages
-        fd.login(username=fm_un, password=fm_pw)
-        fd.get_fm_pages(max_pages=max_pages)
-        
         if dlhtml:
+                # Download and save pages
+                fm_pw = getpass.getpass(prompt="Flight Memory password:")
+                fd.login(username=fm_un, password=fm_pw)
+                fd.get_fm_pages(max_pages=max_pages)
                 fd.save_fm_pages(save_path=save_path)
 
-        # # Read in already saved pages
-        # # fd.read_fm_pages(save_path=SAVE_PATH)
-        # fd.fm_pages_to_pandas()
-        # fd.add_lat_lon()
-        # fd.add_timezones(gnusername=GNUSERNAME, num_flights=4)
-        # fd.save_pandas_to_csv(save_path=SAVE_PATH, save_fn=SAVE_CSV_FN)
+        if topd:
+                # Read in already saved pages
+                fd.read_fm_pages(save_path=save_path)
+                fd.fm_pages_to_pandas()
+                fd.add_lat_lon()
+                fd.add_timezones(gnusername=gn_un)
+                fd.save_pandas_to_csv(save_path=save_path, save_fn=csv_fn)
         # fd.read_pandas_from_csv(save_path=SAVE_PATH, save_fn=SAVE_CSV_FN)
         # fd.add_timezones(gnusername=GNUSERNAME, num_flights=10)
         # fd.save_pandas_to_csv(save_path=SAVE_PATH, save_fn=f"{SAVE_CSV_FN}")

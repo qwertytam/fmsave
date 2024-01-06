@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 import math
+import re
 import pandas as pd
 from pathlib import Path
 import requests
@@ -452,27 +453,50 @@ class FMDownloader:
         self.logger.debug(f"Have added airport lat and lon data now have {self.df.dtypes}")
 
 
+    def _return_empty_tz_dict(self, row):
+        tz = EMPTY_TZ_DICT
+        for key in EMPTY_TZ_DICT:
+            if key in row:
+                tz[key] = row[key]
+        self.logger.info(f"tz now:\n{tz}\n")
+        return tz
+
     def _add_tz(self, row, gnusername, legs=DEFAULT_LEGS):
         gn = GeoNames(username=gnusername)
+        
+        valid_date_pat = re.compile('\\d{4}-\\d{2}-\\d{2}')
             
         for leg in legs:
             tzid_col = f"{leg}_tzid"
             gmtoffset_col = f"{leg}_gmtoffset"
             
-            self.logger.info(f"find_tz for {leg}: {row[legs[leg]['lat']]} {row[legs[leg]['lon']]} {row[legs[leg]['date']]}")
+            lat = row[legs[leg]['lat']]
+            lon = row[legs[leg]['lon']]
+            date = row[legs[leg]['date']]
+            self.logger.info(f"find_tz for {leg}: {lat} {lon} {date}")
             
-            try:
-                tz = gn.find_tz(row[legs[leg]['lat']],
-                                row[legs[leg]['lon']],
-                                row[legs[leg]['date']],
-                                timeout=3,
-                                maxretries=5)
-            except GeoNamesDateReturnError:
-                tz = EMPTY_TZ_DICT
-                self.logger.info(f"Using EMPTY_TZ_DICT, tz now:\n{tz}\n")
-                for key in EMPTY_TZ_DICT:
-                    if key in row:
-                        tz[key] = row[key]
+            valid_posn = not(math.isnan(lat) or math.isnan(lon))
+            valid_date = valid_date_pat.match(date)
+            
+            if valid_date and valid_posn:
+                try:
+                    tz = gn.find_tz(lat,
+                                    lon,
+                                    date,
+                                    timeout=3,
+                                    maxretries=5)
+                except GeoNamesDateReturnError:
+                    self.logger.info(f"GeoNamesDateReturnError; using EMPTY_TZ_DICT")
+                    tz = self._return_empty_tz_dict(row)
+            else:
+                if not valid_date:
+                    self.logger.info(f"Invalide date format for {date};"
+                                     " using EMPTY_TZ_DICT")
+                else:
+                    self.logger.info(f"Invalide lat/lon format for {lat},{lon};"
+                                     " using EMPTY_TZ_DICT")
+                tz = self._return_empty_tz_dict(row)
+
             row[tzid_col] = tz['tz_id']
             row[gmtoffset_col] = tz['gmt_offset']
 
@@ -494,7 +518,7 @@ class FMDownloader:
         
         self.df['dep_date_str'] = self.df['dep_time'].dt.strftime('%Y-%m-%d')
         self.df['arr_date_str'] = self.df['arr_time'].dt.strftime('%Y-%m-%d')
-        
+
         tz_cols = ['dep_tzid',
                    'dep_gmtoffset',
                    'arr_tzid',
@@ -520,7 +544,7 @@ class FMDownloader:
 
             if update_blanks_only and blank_row_test:
                 try:
-                    self.logger.info(f"Updating index {index} {row}")
+                    self.logger.info(f"Updating index {index}")
                     row = self._add_tz(row, gnusername=gnusername)
                     for tz_col in tz_cols:
                         self.df.loc[index, tz_col] = row[tz_col]

@@ -1,11 +1,10 @@
 """
 Usage:
-  fmsave.py FMUSERNAME FMPASSWORD GNUSERNAME CHROME_PATH SAVE_PATH (dlhtml | topd) [--max-html-pages=MAXPAGES]
+  fmsave.py FMUSERNAME GNUSERNAME CHROME_PATH SAVE_PATH (dlhtml | topd) [--max-html-pages=MAXPAGES]
   fmsave.py -h | --help
 
 Arguments:
   FMUSERNAME      Flight Memory usernane
-  FMPASSWORD      Flight Memory password
   CHROME_PATH     Path to Chrome executable
   SAVE_PATH       Directory to save files to
 
@@ -18,8 +17,7 @@ Options:
 
 """
 
-import os
-from dotenv import load_dotenv
+import getpass
 from fmdownload import FMDownloader
 
 from docopt import docopt
@@ -49,11 +47,10 @@ if __name__ == '__main__':
         
         print(args)
         
-        FMUSERNAME = args['FMUSERNAME']
-        FMPASSWORD = args['FMPASSWORD']
-        GNUSERNAME = args['GNUSERNAME']
-        CHROME_PATH = args['CHROME_PATH']
-        SAVE_PATH = args['SAVE_PATH']
+        fm_un = args['FMUSERNAME']
+        gn_un = args['GNUSERNAME']
+        chrome_path = args['CHROME_PATH']
+        save_path = args['SAVE_PATH']
         
         dlhtml = args['dlhtml']
         topd = args['topd']
@@ -64,14 +61,16 @@ if __name__ == '__main__':
         if max_pages is not None:
                 max_pages = int(max_pages)
         
-        fd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=CHROME_OPTIONS)
+        fm_pw = getpass.getpass(prompt="Flight Memory password:")
+        
+        fd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
 
         # Download and save pages
-        fd.login(username=FMUSERNAME, password=FMPASSWORD)
+        fd.login(username=fm_un, password=fm_pw)
         fd.get_fm_pages(max_pages=max_pages)
         
         if dlhtml:
-                fd.save_fm_pages(save_path=SAVE_PATH)
+                fd.save_fm_pages(save_path=save_path)
 
         # # Read in already saved pages
         # # fd.read_fm_pages(save_path=SAVE_PATH)

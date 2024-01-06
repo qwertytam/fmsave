@@ -1,6 +1,6 @@
 """
 Usage:
-  fmsave.py FMUSERNAME GNUSERNAME CHROME_PATH SAVE_PATH (dlhtml | topd) [--max-html-pages=MAXPAGES] [--csvfn=CSVFN]
+  fmsave.py FMUSERNAME GNUSERNAME CHROME_PATH SAVE_PATH (dlhtml | topd | uptz) [--max-html-pages=MAXPAGES] [--csvfn=CSVFN]
   fmsave.py -h | --help
 
 Arguments:
@@ -11,6 +11,7 @@ Arguments:
 Commands:
   dlhtml    Download html only; this or `topd` required
   topd      Convert html into a pandas dataframe; this or `dlhtml` required
+  uptz      Update timezone information in existing csv file
 
 Options:
   -h --help                     Show this screen
@@ -56,6 +57,7 @@ if __name__ == '__main__':
         
         dlhtml = args['dlhtml']
         topd = args['topd']
+        uptz = args['uptz']
         # if topd:
         #         SAVE_CSV_FN = args['FN']
         
@@ -83,6 +85,12 @@ if __name__ == '__main__':
                 fd.add_lat_lon()
                 fd.add_timezones(gnusername=gn_un)
                 fd.save_pandas_to_csv(save_path=save_path, save_fn=csv_fn)
+
+        if uptz:
+                fd.read_pandas_from_csv(save_path=save_path, save_fn=csv_fn)
+                fd.add_timezones(gnusername=gn_un)
+                fd.save_pandas_to_csv(save_path=save_path, save_fn=csv_fn)
+
         # fd.read_pandas_from_csv(save_path=SAVE_PATH, save_fn=SAVE_CSV_FN)
         # fd.add_timezones(gnusername=GNUSERNAME, num_flights=10)
         # fd.save_pandas_to_csv(save_path=SAVE_PATH, save_fn=f"{SAVE_CSV_FN}")

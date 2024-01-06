@@ -96,19 +96,19 @@ class GeoNames:
             msg = error['message']
             # http://www.geonames.org/export/webservice-exception.html
             if msg.startswith("user account not enabled to use"):
-                err_msg = f"GeoNames user has insufficient privilieges: {msg}\n"
+                err_msg = f"GeoNamesUserAuthError: User has insufficient privilieges: {msg}\n"
                 self.logger.error(err_msg)
                 raise GeoNamesUserAuthError(err_msg)
             if code == 10:
-                err_msg = f"GeoNames user authentication error: {msg}\n"
+                err_msg = f"GeoNamesUserAuthError: User authentication error: {msg}\n"
                 self.logger.error(err_msg)
                 raise GeoNamesUserAuthError(err_msg)
             if code == 14:
-                err_msg = f"Invalid date format: {msg}\n"
+                err_msg = f"GeoNamesDateReturnError: Invalid date format: {msg}\n"
                 self.logger.error(err_msg)
                 raise GeoNamesDateReturnError(err_msg)
             if code in (18, 19, 20):
-                err_msg = f"GeoNames user quota exceeded: {msg}\n"
+                err_msg = f"GeoNamesCreditLimitError: GeoNames user quota exceeded: {msg}\n"
                 self.logger.error(err_msg)
                 raise GeoNamesCreditLimitError(err_msg)
             err_msg = f"GeoNames error: {code} {msg}\n"

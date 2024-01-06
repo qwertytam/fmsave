@@ -103,6 +103,10 @@ class GeoNames:
                 err_msg = f"GeoNames user authentication error: {msg}\n"
                 self.logger.error(err_msg)
                 raise GeoNamesUserAuthError(err_msg)
+            if code == 14:
+                err_msg = f"Invalid date format: {msg}\n"
+                self.logger.error(err_msg)
+                raise GeoNamesDateReturnError(err_msg)
             if code in (18, 19, 20):
                 err_msg = f"GeoNames user quota exceeded: {msg}\n"
                 self.logger.error(err_msg)

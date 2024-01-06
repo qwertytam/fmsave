@@ -261,7 +261,7 @@ class FMDownloader:
              'dist_units',
              'duration',
              'duration_units']] = self.df['dist_duration']\
-                 .str.split('\|\|', expand=True)
+                 .str.split('\\|\\|', expand=True)
         self.df['dist'] = pd.to_numeric(self.df['dist'].str.replace(',', ''))
 
 
@@ -275,16 +275,16 @@ class FMDownloader:
                 .str.split(' ', expand=True)
                  
         self.df[['seat', 'class']] = self.df['seat_class']\
-            .str.split('\/', expand=True)
+            .str.split('\\/', expand=True)
 
 
     def _split_airplane_col(self):
         self.logger.debug(f"_split_airplane_col()")
-        pat = '(?>\s|^)('  # start of string 
-        pat += '(?>N\w{3,5})'  # for USA registrations
-        pat += '|(?>[2BCDFGIPUZ]-\w{3,4})'  # for registrations with single letter prefix
-        pat += '|(?>\w{2}-\w{3,4})'  # all other country registrations
-        pat += ')(?>\s|$)'  # end of string
+        pat = '(?>\\s|^)('  # start of string 
+        pat += '(?>N\\w{3,5})'  # for USA registrations
+        pat += '|(?>[2BCDFGIPUZ]-\\w{3,4})'  # for registrations with single letter prefix
+        pat += '|(?>\\w{2}-\\w{3,4})'  # all other country registrations
+        pat += ')(?>\\s|$)'  # end of string
         self.df[
             ['airplane',
              'reg',

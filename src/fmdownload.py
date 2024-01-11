@@ -369,7 +369,8 @@ class FMDownloader:
             self.df = pd.concat([self.df, df],
                                         ignore_index=True)
                 
-        self.logger.info(f"Finished reading {idx+1} pages to self.df")
+        self.logger.info(f"Finished reading {idx+1} pages to self.df; "
+                         f"read in {len(self.df.index):,} flights")
 
         self.df.drop(columns=['Options'], inplace=True)
         self.df.rename(
@@ -458,7 +459,7 @@ class FMDownloader:
         for key in EMPTY_TZ_DICT:
             if key in row:
                 tz[key] = row[key]
-        self.logger.info(f"tz now:\n{tz}\n")
+        self.logger.debug(f"tz now:\n{tz}\n")
         return tz
 
     def _add_tz(self, row, gnusername, legs=DEFAULT_LEGS):
@@ -473,7 +474,7 @@ class FMDownloader:
             lat = row[legs[leg]['lat']]
             lon = row[legs[leg]['lon']]
             date = row[legs[leg]['date']]
-            self.logger.info(f"find_tz for {leg}: {lat} {lon} {date}")
+            self.logger.debug(f"find_tz for {leg}: {lat} {lon} {date}")
             
             valid_posn = not(math.isnan(lat) or math.isnan(lon))
             valid_date = valid_date_pat.match(str(date))
@@ -490,10 +491,10 @@ class FMDownloader:
                     tz = self._return_empty_tz_dict(row)
             else:
                 if not valid_date:
-                    self.logger.info(f"Invalide date format for {date};"
+                    self.logger.debug(f"Invalide date format for {date};"
                                      " using EMPTY_TZ_DICT")
                 else:
-                    self.logger.info(f"Invalide lat/lon format for {lat},{lon};"
+                    self.logger.debug(f"Invalide lat/lon format for {lat},{lon};"
                                      " using EMPTY_TZ_DICT")
                 tz = self._return_empty_tz_dict(row)
 
@@ -556,7 +557,7 @@ class FMDownloader:
                 self.logger.info(f"Updated index {index}"
                                  f"; have now updated {updated_flights} flights")
             else:
-                self.logger.info(f"Skipping index {index}")
+                self.logger.debug(f"Skipping index {index}")
                 next
 
 

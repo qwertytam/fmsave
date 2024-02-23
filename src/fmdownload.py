@@ -8,13 +8,18 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 import math
 import re
+import numpy as np
 import pandas as pd
 from pathlib import Path
 import requests
 from geonames import GeoNames
 from geonames import (GeoNamesDateReturnError, GeoNamesStopError)
 from geonames import EMPTY_TZ_DICT
-# from datetime import datetime as dt
+from datetime import datetime as dt
+
+import pathlib
+
+mpath = pathlib.Path(__file__).parent.absolute()
 
 import logging
 
@@ -23,7 +28,7 @@ _module_logger_name = f'{APP_NAME}.{__name__}'
 module_logger = logging.getLogger(_module_logger_name)
 module_logger.info(f"Module {_module_logger_name} logger initialized")
 
-AIRPORT_DATA_FILEPATH = '../data/airports.csv'
+AIRPORT_DATA_FILEPATH = mpath.parent / 'data/airports.csv'
 
 # FM_SEAT_POSN = ['Window', 'Aisle', 'Middle']
 # FM_TRAVEL_CLASS = ['Economy', 'EconomyPlus', 'Business', 'First']
@@ -34,6 +39,11 @@ DEFAULT_LEGS = {
     'dep': {'date': 'dep_date_str', 'lat': 'lat_dep', 'lon': 'lon_dep'},
     'arr': {'date': 'arr_date_str', 'lat': 'lat_arr', 'lon': 'lon_arr'}
     }
+
+DT_INFO_YMDT = "YMDT"
+DT_INFO_YMD = "YMD"
+DT_INFO_YM = "YM"
+DT_INFO_Y = "Y"
 
 
 def get_airport_data(
@@ -258,31 +268,78 @@ class FMDownloader:
         
         # For the date with day offset case, need to ensure there are three
         # spaces for when we split into four columns
+        
         pat = r'^(\d{2}\.\d{2}\.\d{4})\s+((?:\+|\-)\d)'
         repl = r'\1   \2'
         self.df['date_dept_arr_offset'] = self.df['date_dept_arr_offset']\
             .str.replace(pat=pat, repl=repl, regex=True)
         
+        expected_cols = 4
+        str_split = self.df['date_dept_arr_offset'].str.split(' ',
+                                                              expand=True,
+                                                              n=expected_cols)
+        
+        if len(str_split.columns) == 1:
+            self.logger.debug("only one column, adding one more")
+            str_split[1] = pd.Series('', index=str_split.index)
+
+        if len(str_split.columns) == 2:
+            self.logger.debug("only two columns, adding one more")
+            str_split[2] = pd.Series('', index=str_split.index)
+        
+        if len(str_split.columns) == 3:
+            self.logger.debug("only three columns, adding one more")
+            str_split[3] = pd.Series('', index=str_split.index)
+
         self.df[
             ['date',
              'dep_time',
              'arr_time',
-             'date_offset']] = self.df['date_dept_arr_offset']\
-                 .str.split(' ', expand=True)
+             'date_offset']] = str_split
 
-        cols = [
-            'date_dept_arr_offset',
-            'date',
-            'dep_time',
-            'arr_time',
-            'date_offset']
-        self.df[cols] = self.df[cols].fillna(value='')
+        self.df['dt_info'] = None
+
+        # year, month, day and time available
+        condition = ~self.df['dep_time'].isna()
+        self.df.loc[condition, 'dt_info'] = DT_INFO_YMDT
+
+        pat = r'(\d{2})-(\d{2})-(\d{4})'
+        repl = r'\3-\2-\1'
+        self.df.loc[condition, 'date'] = self.df.loc[condition, 'date']\
+            .str.replace(pat=pat, repl=repl, regex=True) 
+
+        # year, month, day only available
+        pat = r'(\d{2})-(\d{2})-(\d{4})'
+        condition = (self.df['dt_info'].isna()) & (self.df['date'].str.match(pat))
+        self.df.loc[condition, 'dt_info'] = DT_INFO_YMD
+        
+        repl = r'\3-\2-\1'
+        self.df.loc[condition, 'date'] = self.df.loc[condition, 'date']\
+            .str.replace(pat=pat, repl=repl, regex=True)
+
+        # year, month only available
+        pat = r'(\d{2})-(\d{4})'
+        condition = (self.df['dt_info'].isna()) & (self.df['date'].str.match(pat))
+        self.df.loc[condition, 'dt_info'] = DT_INFO_YM
+        
+        repl = r'\2-\1'
+        self.df.loc[condition, 'date'] = self.df.loc[condition, 'date']\
+            .str.replace(pat=pat, repl=repl, regex=True)
+
+        # year only available
+        pat = r'\d{4}'
+        condition = (self.df['dt_info'].isna()) & (self.df['date'].str.match(pat))
+        self.df.loc[condition, 'dt_info'] = DT_INFO_Y
         
         pat = r'^\s*$'
         repl = '0'
         self.df['date_offset'] = self.df['date_offset']\
             .str.replace(pat=pat, repl=repl, regex=True)
 
+        self.logger.info(f"3\n{self.df.loc[:, ['date',
+             'dep_time',
+             'arr_time',
+             'date_offset']]}\n")
 
     def _split_dist_col(self):
         self.logger.debug(f"_split_dist_col()")
@@ -297,12 +354,29 @@ class FMDownloader:
 
     def _split_seat_col(self):
         self.logger.debug(f"_split_seat_col()")
+        
+        expected_cols = 4
+        str_split = self.df['seat_class_place'].str.split(' ',
+                                                          expand=True,
+                                                          n=expected_cols)
+        
+        if len(str_split.columns) == 1:
+            self.logger.debug("only one column, adding one more")
+            str_split[1] = pd.Series('', index=str_split.index)
+
+        if len(str_split.columns) == 2:
+            self.logger.debug("only two columns, adding one more")
+            str_split[2] = pd.Series('', index=str_split.index)
+        
+        if len(str_split.columns) == 3:
+            self.logger.debug("only three columns, adding one more")
+            str_split[3] = pd.Series('', index=str_split.index)
+        
         self.df[[
             'seat_class',
             'reason',
             'role',
-            'reason']] = self.df['seat_class_place']\
-                .str.split(' ', expand=True)
+            'reason']] = str_split
                  
         self.df[['seat', 'class']] = self.df['seat_class']\
             .str.split('\\/', expand=True)
@@ -315,19 +389,39 @@ class FMDownloader:
         pat += '|(?>[2BCDFGIPUZ]-\\w{3,4})'  # for registrations with single letter prefix
         pat += '|(?>\\w{2}-\\w{3,4})'  # all other country registrations
         pat += ')(?>\\s|$)'  # end of string
+
+        expected_cols = 3
+        str_split = self.df['airplane_reg_name']\
+            .str.split(pat, expand=True, n=expected_cols)
+        
+        if len(str_split.columns) == 1:
+            self.logger.debug("only one column, adding one more")
+            str_split[1] = pd.Series('', index=str_split.index)
+
+        if len(str_split.columns) == 2:
+            self.logger.debug("only two columns, adding one more")
+            str_split[2] = pd.Series('', index=str_split.index)
+
         self.df[
             ['airplane',
              'reg',
-             'name']] = self.df['airplane_reg_name']\
-                 .str.split(pat, expand=True)
+             'name']] = str_split
 
 
     def _split_airline_col(self):
         self.logger.debug(f"_split_airline_col()")
+
+        expected_cols = 2
+        str_split = self.df['airline_flightnum']\
+            .str.rsplit(' ', n=1, expand=True)
+        
+        if len(str_split.columns) == 1:
+            self.logger.debug("only one column, adding one more")
+            str_split[1] = pd.Series('', index=str_split.index)
+
         self.df[
             ['airline',
-             'flightnum']] = self.df['airline_flightnum']\
-                 .str.rsplit(' ', n=1, expand=True)
+             'flightnum']] = str_split
 
 
     def _dates_to_dt(self):
@@ -335,13 +429,15 @@ class FMDownloader:
         
         time_cols = ['dep_time', 'arr_time']
         for col in time_cols:
-            time_is_empty =  self.df[col] == ''
-            self.df.loc[~time_is_empty, col] = self.df.loc[~time_is_empty,'date'] +\
+            time_is_empty =  self.df[col].isna()
+
+            self.df.loc[~time_is_empty, col] = self.df.loc[~time_is_empty, 'date'] +\
             ' ' + self.df.loc[~time_is_empty, col]
+
             self.df[col] = pd.to_datetime(self.df[col],
                                           format='mixed',
                                           dayfirst=True)
-        
+
         self.df['date_offset'] = pd.to_timedelta(
             pd.to_numeric(self.df['date_offset']), unit='days')
         self.df['arr_time'] = self.df['arr_time'] \
@@ -361,6 +457,7 @@ class FMDownloader:
         Convert Flight Memory web pages to pandas data frame
         """
         self.logger.debug(f"fm_pages_to_pandas()")
+
         for idx, page in enumerate(self.pages):
             self.logger.debug(f"Reading page {idx+1} to self.df")
             flight_tbl = _get_str_for_pd(page)
@@ -368,7 +465,7 @@ class FMDownloader:
                     io.StringIO(str(flight_tbl)), flavor='bs4')[0]
             self.df = pd.concat([self.df, df],
                                         ignore_index=True)
-                
+            
         self.logger.info(f"Finished reading {idx+1} pages to self.df; "
                          f"read in {len(self.df.index):,} flights")
 
@@ -404,11 +501,14 @@ class FMDownloader:
                       'seat_class',
                       'airplane_reg_name',
                       'airline_flightnum',
-                      'date',
+                    #   'date',
                       'date_offset',
                       'duration_units'],
                 axis=1,
                 inplace=True)
+
+        self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
+        self.df['ts'] = dt.now()
 
     def add_lat_lon(self, airport_data_file=AIRPORT_DATA_FILEPATH):
         """
@@ -451,8 +551,9 @@ class FMDownloader:
             lsuffix='_dep',
             rsuffix='_arr')
         
-        self.logger.debug(f"Have added airport lat and lon data now have {self.df.dtypes}")
+        self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
 
+        self.logger.debug(f"Have added airport lat and lon data now have:\n{self.df.dtypes}")
 
     def _return_empty_tz_dict(self, row):
         tz = EMPTY_TZ_DICT
@@ -503,7 +604,6 @@ class FMDownloader:
 
         return row
 
-
     def add_timezones(self, gnusername, update_blanks_only=True, num_flights=None):
         """
         Add airport time zone information (IANA name and GMT offset) to pandas
@@ -517,8 +617,17 @@ class FMDownloader:
         self.logger.info(f"add_timezones()")
         updated_flights = 0
         
-        self.df['dep_date_str'] = self.df['dep_time'].dt.strftime('%Y-%m-%d')
-        self.df['arr_date_str'] = self.df['arr_time'].dt.strftime('%Y-%m-%d')
+        fill_rows = (self.df['dt_info'] == DT_INFO_YMDT)
+        self.df.loc[fill_rows, 'dep_date_str'] = \
+            self.df.loc[fill_rows, 'dep_time'].dt.strftime('%Y-%m-%d')
+        self.df.loc[fill_rows, 'arr_date_str'] = \
+            self.df.loc[fill_rows, 'arr_time'].dt.strftime('%Y-%m-%d')
+
+
+        fill_rows = (self.df['dt_info'] == DT_INFO_YMD)
+        self.df.loc[fill_rows, ['dep_date_str', 'arr_date_str']] = self.df.loc[fill_rows, 'date']
+
+        # self.df.loc[~ymdt_rows, ['dep_date_str', 'arr_date_str']] = pd.NaT
 
         tz_cols = ['dep_tzid',
                    'dep_gmtoffset',
@@ -560,8 +669,6 @@ class FMDownloader:
                 self.logger.debug(f"Skipping index {index}")
                 next
 
-
-
     def save_pandas_to_csv(self, save_path, save_fn='flights.csv'):
         """
         Save pandas data frame to csv
@@ -590,48 +697,52 @@ class FMDownloader:
             'arr_time',
             'dep_date_str',
             'arr_date_str',
+            'ts',
         ]
         timedelata_cols = [
             'duration'
         ]
         col_types = {
-            # 'flight_index': str,
-            # 'dep_iata': str,
-            # 'dep_city_county_name': str,
-            # 'arr_iata': str,
-            # 'arr_city_county_name': str,
+            'flight_index': str,
+            'dep_iata': str,
+            'dep_city_county_name': str,
+            'arr_iata': str,
+            'arr_city_county_name': str,
+            'date': str,
             # 'dep_time': dt,
             # 'arr_time': dt,
+            'dt_info': str,
             'dist': int,
-            # 'dist_units': str,
+            'dist_units': str,
             # 'duration': td,
-            # 'reason': str,
-            # 'role': str,
-            # 'seat': str,
-            # 'class': str,
-            # 'airplane': str,
-            # 'reg': str,
-            # 'name_org': str,
-            # 'airline': str,
-            # 'flightnum': str,
-            # 'ident_dep': str,
-            # 'name_dep': str,
+            'reason': str,
+            'role': str,
+            'seat': str,
+            'class': str,
+            'airplane': str,
+            'reg': str,
+            'name_org': str,
+            'airline': str,
+            'flightnum': str,
+            'ident_dep': str,
+            'name_dep': str,
             'lat_dep': float,
             'lon_dep': float,
-            # 'iso_country_dep': str,
-            # 'municipality_dep': str,
-            # 'ident_arr': str,
-            # 'name': str,
+            'iso_country_dep': str,
+            'municipality_dep': str,
+            'ident_arr': str,
+            'name': str,
             'lat_arr': float,
             'lon_arr': float,
-            # 'iso_country_arr': str,
-            # 'municipality_arr': str,
+            'iso_country_arr': str,
+            'municipality_arr': str,
             # 'dep_date_str': dt,
             # 'arr_date_str': dt,
             'dep_tzid': str,
             'dep_gmtoffset': float,
             'arr_tzid': str,
             'arr_gmtoffset': float,
+            # 'ts': dt,
         }
         self.df = pd.read_csv(fp, dtype=col_types)
         
@@ -644,3 +755,60 @@ class FMDownloader:
                 self.df[col])
 
         self.logger.debug(f"Have read in csv; df types:\n{self.df.dtypes}")
+
+    def find_updated_rows(self, fd_updated):
+        on_cols = [
+            'dep_iata',
+            'dep_city_county_name',
+            'arr_iata',
+            'arr_city_county_name',
+            'date',
+            'dep_time',
+            'arr_time',
+            'dt_info',
+            'dist',
+            'dist_units',
+            'duration',
+            'reason',
+            'role',
+            'seat',
+            'class',
+            'airplane',
+            'reg',
+            'name_org',
+            'airline',
+            'flightnum',
+            'ident_dep',
+            'name_dep',
+            'lat_dep',
+            'lon_dep',
+            'iso_country_dep',
+            'municipality_dep',
+            'ident_arr',
+            'name',
+            'lat_arr',
+            'lon_arr',
+            'iso_country_arr',
+            'municipality_arr',]
+        
+        self.df = self.df.fillna(value='')
+        fd_updated.df = fd_updated.df.fillna(value='')
+        exc_cols = ['flight_index']
+        
+        df_all = self.df.merge(
+            fd_updated.df.loc[:, ~fd_updated.df.columns.isin(exc_cols)],
+            on=on_cols,
+            how='outer',
+            indicator=True)
+        
+        df_all.loc[df_all['ts_x'].isna(), 'ts_x'] = df_all.loc[df_all['ts_x'].isna(), 'ts_y']
+        df_all.drop(columns=['ts_y', '_merge'], inplace=True)
+        df_all.rename(
+            columns={'ts_x': 'ts'},
+            inplace=True,
+            errors='raise',
+            )
+
+        sort_cols = ['date', 'dep_time', 'arr_time']
+        self.df = df_all.sort_values(by=sort_cols)
+        self.df['flight_index'] = range(1, len(self.df.index) + 1)

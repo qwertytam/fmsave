@@ -205,7 +205,7 @@ class FMDownloader:
                 break
         
         if not _max_loops(loop_counter):
-            self.logger.info(f"Exited loop as hit max for loop counter {loop_counter}")
+            self.logger.debug(f"Exited loop as hit max for loop counter {loop_counter}")
 
         found_pages = len(self.pages) - pages_len
         pages_len = len(self.pages)
@@ -244,6 +244,10 @@ class FMDownloader:
         """
         self.logger.debug(f"Scanning path: {save_path} for {fext}")
         page_files = list(Path(save_path).glob(f'*.{fext}'))
+        
+        if len(page_files) == 0:
+            raise ValueError("No html pages found to read in")
+
         self.logger.info(f"Found {len(page_files)} pages")
         
         for page_num, page_file in enumerate(page_files):
@@ -336,11 +340,6 @@ class FMDownloader:
         self.df['date_offset'] = self.df['date_offset']\
             .str.replace(pat=pat, repl=repl, regex=True)
 
-        self.logger.info(f"3\n{self.df.loc[:, ['date',
-             'dep_time',
-             'arr_time',
-             'date_offset']]}\n")
-
     def _split_dist_col(self):
         self.logger.debug(f"_split_dist_col()")
         self.df[
@@ -425,9 +424,10 @@ class FMDownloader:
 
 
     def _dates_to_dt(self):
-        self.logger.info(f"_dates_to_dt()")
+        self.logger.debug(f"_dates_to_dt()")
         
         time_cols = ['dep_time', 'arr_time']
+        self.logger.debug(f"\n{self.df.loc[0, ['date', 'dep_time', 'arr_time', 'date_offset']]}")
         for col in time_cols:
             time_is_empty =  self.df[col].isna()
 
@@ -438,6 +438,7 @@ class FMDownloader:
                                           format='mixed',
                                           dayfirst=True)
 
+        self.df['date_offset'] = self.df['date_offset'].fillna(0)
         self.df['date_offset'] = pd.to_timedelta(
             pd.to_numeric(self.df['date_offset']), unit='days')
         self.df['arr_time'] = self.df['arr_time'] \
@@ -457,7 +458,7 @@ class FMDownloader:
         Convert Flight Memory web pages to pandas data frame
         """
         self.logger.debug(f"fm_pages_to_pandas()")
-
+        
         for idx, page in enumerate(self.pages):
             self.logger.debug(f"Reading page {idx+1} to self.df")
             flight_tbl = _get_str_for_pd(page)
@@ -567,7 +568,7 @@ class FMDownloader:
         gn = GeoNames(username=gnusername)
         
         valid_date_pat = re.compile('\\d{4}-\\d{2}-\\d{2}')
-            
+        self.logger.debug(f"\n{row}")
         for leg in legs:
             tzid_col = f"{leg}_tzid"
             gmtoffset_col = f"{leg}_gmtoffset"
@@ -581,6 +582,8 @@ class FMDownloader:
             valid_date = valid_date_pat.match(str(date))
             
             if valid_date and valid_posn:
+                self.logger.debug(f"Valid formats for {date};"
+                                  f" lat/lon {lat},{lon}")
                 try:
                     tz = gn.find_tz(lat,
                                     lon,
@@ -592,16 +595,17 @@ class FMDownloader:
                     tz = self._return_empty_tz_dict(row)
             else:
                 if not valid_date:
-                    self.logger.debug(f"Invalide date format for {date};"
+                    self.logger.debug(f"Invalid date format for {date};"
                                      " using EMPTY_TZ_DICT")
                 else:
-                    self.logger.debug(f"Invalide lat/lon format for {lat},{lon};"
+                    self.logger.debug(f"Invalid lat/lon format for {lat},{lon};"
                                      " using EMPTY_TZ_DICT")
                 tz = self._return_empty_tz_dict(row)
 
             row[tzid_col] = tz['tz_id']
             row[gmtoffset_col] = tz['gmt_offset']
 
+        sys.exit()
         return row
 
     def add_timezones(self, gnusername, update_blanks_only=True, num_flights=None):
@@ -614,18 +618,18 @@ class FMDownloader:
             update_blanks_only: Only update rows with no time zone information
             num_flights: Maximum number of flights (rows) to update
         """
-        self.logger.info(f"add_timezones()")
+        self.logger.debug(f"add_timezones()")
         updated_flights = 0
         
-        fill_rows = (self.df['dt_info'] == DT_INFO_YMDT)
+        fill_rows = self.df['dt_info'] == DT_INFO_YMDT 
         self.df.loc[fill_rows, 'dep_date_str'] = \
             self.df.loc[fill_rows, 'dep_time'].dt.strftime('%Y-%m-%d')
         self.df.loc[fill_rows, 'arr_date_str'] = \
             self.df.loc[fill_rows, 'arr_time'].dt.strftime('%Y-%m-%d')
 
-
         fill_rows = (self.df['dt_info'] == DT_INFO_YMD)
-        self.df.loc[fill_rows, ['dep_date_str', 'arr_date_str']] = self.df.loc[fill_rows, 'date']
+        self.df.loc[fill_rows, ['dep_date_str', 'arr_date_str']] = \
+            self.df.loc[fill_rows, 'date']
 
         # self.df.loc[~ymdt_rows, ['dep_date_str', 'arr_date_str']] = pd.NaT
 
@@ -635,9 +639,9 @@ class FMDownloader:
                    'arr_gmtoffset']
         new_cols = list(set(tz_cols).difference(self.df.columns))
         if not new_cols:
-            self.logger.info(f"No new_cols to add")
+            self.logger.debug(f"No new_cols to add")
         else:
-            self.logger.info(f"Adding new_cols: {new_cols}")
+            self.logger.debug(f"Adding new_cols: {new_cols}")
             for new_col in new_cols:
                 self.df[new_col] = ''
 

@@ -59,8 +59,6 @@ def dl_html(fd, fm_un, max_pages, save_path):
 if __name__ == '__main__':
     args = docopt(__doc__)
     
-    print(args)
-    
     fm_un = args['FMUSERNAME']
     gn_un = args['GNUSERNAME']
     chrome_path = args['CHROME_PATH']
@@ -70,8 +68,6 @@ if __name__ == '__main__':
     topd = args['topd']
     upcsv = args['upcsv']
     uptz = args['uptz']
-    # if topd:
-    #     SAVE_CSV_FN = args['FN']
     
     max_pages = args['--max-html-pages']
     if max_pages is not None:
@@ -108,7 +104,3 @@ if __name__ == '__main__':
         fd.read_pandas_from_csv(save_path=save_path, save_fn=csv_fn)
         fd.add_timezones(gnusername=gn_un)
         fd.save_pandas_to_csv(save_path=save_path, save_fn=csv_fn)
-
-    # fd.read_pandas_from_csv(save_path=SAVE_PATH, save_fn=SAVE_CSV_FN)
-    # fd.add_timezones(gnusername=GNUSERNAME, num_flights=10)
-    # fd.save_pandas_to_csv(save_path=SAVE_PATH, save_fn=f"{SAVE_CSV_FN}")

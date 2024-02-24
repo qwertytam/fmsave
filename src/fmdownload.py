@@ -605,7 +605,6 @@ class FMDownloader:
             row[tzid_col] = tz['tz_id']
             row[gmtoffset_col] = tz['gmt_offset']
 
-        sys.exit()
         return row
 
     def add_timezones(self, gnusername, update_blanks_only=True, num_flights=None):

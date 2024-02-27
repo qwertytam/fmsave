@@ -650,10 +650,13 @@ class FMDownloader:
             if updated_flights >= num_flights:
                 break
 
+            self.logger.debug(f"row is:\n{row[tz_cols]}\n{row[tz_cols].dtypes}")
             if type(row[tz_cols[0]]) is str:
-                blank_row_test = row[tz_cols[0]] == ''
+                blank_row_test = (row[tz_cols[0]] == '') and \
+                    (row['dep_time'] is not None)
             else:
-                blank_row_test = math.isnan(row[tz_cols[0]])
+                blank_row_test = math.isnan(row[tz_cols[0]]) & \
+                    pd.notna(row['dep_time'])
 
             if update_blanks_only and blank_row_test:
                 try:

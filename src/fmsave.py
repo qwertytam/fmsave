@@ -1,28 +1,38 @@
 """
 Usage:
-  fmsave.py FMUSERNAME GNUSERNAME CHROME_PATH SAVE_PATH (dlhtml | topd | upcsv | uptz) [--max-html-pages=MAXPAGES] [--csvfn=CSVFN]
+  fmsave.py dlhtml <fm_un> <chrome_path> <save_path> [--max-pages=max_pages]
+  fmsave.py tocsv <gn_un> <read_path> <fsave>
+  fmsave.py upcsv <gn_un> <read_path> <fread> <fsave>
+  fmsave.py uptz  <gn_un> <fread> <fsave>
+  fmsave.py upair [<airurl>]
   fmsave.py -h | --help
 
-Arguments:
-  FMUSERNAME      Flight Memory usernane
-  CHROME_PATH     Path to Chrome executable
-  SAVE_PATH       Directory to save files to
-
 Commands:
-  dlhtml    Download html only; this or `topd` required
-  topd      Convert html into a pandas dataframe; this or `dlhtml` required
-  upcsv     Update csv based on latest data in Flight Memory
+  dlhtml    Download html pages
+  tocsv     Convert html pages into a csv file
+  upair     Update airport info data file
+  upcsv     Update existing csv file based on downloaded html pages
   uptz      Update timezone information in existing csv file
+
+Arguments:
+  airurl        URL to download airport info from
+  chrome_path   Path to Chrome executable
+  fm_un         Flight Memory username
+  fread         Path to and file name of csv file to read from
+  fsave         Path to and file name of csv file to save to
+  gn_un         Geonames username
+  read_path     Directory to read html files from
+  save_path     Directory to save html files to
+  
 
 Options:
   -h --help                     Show this screen
-  --csvfn=CSVFN                 CSV file name for pandas save
-  --max-html-pages=MAXPAGES     Maximum number of html pages to download and save
+  --max-html-pages=max_pages     Maximum number of html pages to download and save
 
 """
-
+import sys
 import getpass
-from fmdownload import FMDownloader
+from fmdownload import FMDownloader, get_airport_data, _check_create_path
 
 from docopt import docopt
 
@@ -56,16 +66,45 @@ def dl_html(fd, fm_un, max_pages, save_path):
     fd.get_fm_pages(max_pages=max_pages)
     fd.save_fm_pages(save_path=save_path)
 
-if __name__ == '__main__':
-    args = docopt(__doc__)
+def html_to_csv(fd, gn_un, read_path, fsave):
+    # Read in already saved pages
+    fd.read_fm_pages(read_path=read_path)
+    fd.fm_pages_to_pandas()
+    fd.add_lat_lon()
+    fd.add_timezones(gnusername=gn_un)
+    fd.save_pandas_to_csv(save_fp=fsave)
+
+def update_csv(fd, fdd, read_path, fread, fsave):
+    fd.read_fm_pages(read_path=read_path)
+    fd.fm_pages_to_pandas()
+    fd.add_lat_lon()
     
-    fm_un = args['FMUSERNAME']
-    gn_un = args['GNUSERNAME']
-    chrome_path = args['CHROME_PATH']
-    save_path = args['SAVE_PATH']
+    fdd.read_pandas_from_csv(read_fp=fread)
+    fdd.find_updated_rows(fd)
+    fd.save_pandas_to_csv(save_fp=fsave)
+
+def update_tz():
+    fd.read_pandas_from_csv(read_fp=fread)
+    fd.add_timezones(gnusername=gn_un)
+    fd.save_pandas_to_csv(save_fp=fsave)
+
+
+if __name__ == '__main__':
+
+    args = docopt(__doc__)
+
+    airurl = args['airurl']
+    chrome_path = args['chrome_path']    
+    fm_un = args['fm_un']
+    fread = args['fread']
+    fsave = args['fsave']
+    gn_un = args['gn_un']
+    read_path = args['read_path']
+    save_path = args['save_path']
     
     dlhtml = args['dlhtml']
-    topd = args['topd']
+    tocsv = args['tocsv']
+    upair = args['upair']
     upcsv = args['upcsv']
     uptz = args['uptz']
     
@@ -82,25 +121,15 @@ if __name__ == '__main__':
     if dlhtml:
         dl_html(fd, fm_un, max_pages, save_path)
 
-    if topd:
-        # Read in already saved pages
-        fd.read_fm_pages(save_path=save_path)
-        fd.fm_pages_to_pandas()
-        fd.add_lat_lon()
-        fd.add_timezones(gnusername=gn_un)
-        fd.save_pandas_to_csv(save_path=save_path, save_fn=csv_fn)
+    if tocsv:
+        html_to_csv(fd, gn_un, read_path, fsave)
+
+    if upair:
+        get_airport_data(url=airurl)
 
     if upcsv:
-        dl_html(fd, fm_un, max_pages, save_path)
-        fd.fm_pages_to_pandas()
-        fd.add_lat_lon()
-        
         fdd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
-        fdd.read_pandas_from_csv(save_path=save_path, save_fn=csv_fn)
-        fdd.find_updated_rows(fd)
-        fdd.save_pandas_to_csv(save_path=save_path, save_fn=csv_fn)
+        update_csv(fd, fdd, read_path, fread, fsave)
 
     if uptz:
-        fd.read_pandas_from_csv(save_path=save_path, save_fn=csv_fn)
-        fd.add_timezones(gnusername=gn_un)
-        fd.save_pandas_to_csv(save_path=save_path, save_fn=csv_fn)
+        update_tz(fd, gn_un, fread, fsave)

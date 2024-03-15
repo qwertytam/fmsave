@@ -78,9 +78,35 @@ def _get_str_for_pd(page):
     return flight_tbl
 
 
-def _check_create_path(dir_path):
+def _check_create_path(dir_path, logger=module_logger):
+    """
+    Check if path exists, if not, creates path
+    
+    Checks if `dir_path` contains a file (by looking for a `.` after any
+    slashes), resolves the path, then creates path if it does not already exist
+    
+    Args:
+        dir_path: String of path that might include a file
+    """
+    
+    pat_path = r'(\\+|/+)'
+    pat_file = r'\.'
+
+    path_splits = re.split(pat_path, dir_path)
+    fn_search = re.search(pat_file, ''.join(path_splits[-1:]))
+    
     fp = Path(dir_path).resolve()
-    print(f"Checking and creating path for {fp}")
+    
+    logger.info(f"resolved path is {fp}")
+    
+    if fn_search is None:
+        # Did not find file in provided path
+        logger.info(f"Did not find file name for: {dir_path}")
+    else:
+        fp = fp.parents[0]
+        logger.info(f"Found file name for {dir_path} going with parents")
+    
+    logger.info(f"Checking and creating path for {fp}")
     Path(fp).mkdir(parents=True, exist_ok=True)
 
 class FMDownloader:
@@ -232,26 +258,26 @@ class FMDownloader:
 
         self.logger.info(f"Saved {page_num + 1} pages")
 
-    def read_fm_pages(self, save_path, fext='html'):
+    def read_fm_pages(self, read_path, fext='html'):
         """
         Read in Flight Memory html pages from disk
 
         Appends pages to existing self.pages data structure
         
         Args:
-            save_path: Path to saved html files
+            read_path: Path to saved html files
             fext: File extension to filter on
         """
-        self.logger.debug(f"Scanning path: {save_path} for {fext}")
-        page_files = list(Path(save_path).glob(f'*.{fext}'))
+        self.logger.debug(f"Scanning path '''{read_path}''' for '''*.{fext}'''")
+        page_files = list(Path(read_path).glob(f'*.{fext}'))
         
         if len(page_files) == 0:
-            raise ValueError("No html pages found to read in")
+            raise ValueError("No '''*.{fext}''' files found to read in")
 
-        self.logger.info(f"Found {len(page_files)} pages")
+        self.logger.info(f"Found {len(page_files)} '''*.{fext}''' files")
         
         for page_num, page_file in enumerate(page_files):
-            self.logger.debug(f"Reading page {page_num+1}: {page_file}")
+            self.logger.debug(f"Reading file {page_num+1}: {page_file}")
             
             with open(page_file, 'r') as f:
                 self.pages.append(f.read())
@@ -675,7 +701,7 @@ class FMDownloader:
                 self.logger.debug(f"Skipping index {index}")
                 next
 
-    def save_pandas_to_csv(self, save_path, save_fn='flights.csv'):
+    def save_pandas_to_csv(self, save_fp='flights.csv'):
         """
         Save pandas data frame to csv
         
@@ -683,12 +709,12 @@ class FMDownloader:
             save_path: Directory to save file to
             save_fn: File name to save file as
         """
-        _check_create_path(save_path)
-        fp = Path(save_path, save_fn)
+        _check_create_path(save_fp)
+        fp = Path(save_fp)
         self.logger.info(f"Saving self.df to {fp}")
         self.df.to_csv(fp, index=False)
     
-    def read_pandas_from_csv(self, save_path, save_fn='flights.csv'):
+    def read_pandas_from_csv(self, read_fp, save_fn='flights.csv'):
         """
         Read in csv to pandas data frame
         
@@ -696,7 +722,7 @@ class FMDownloader:
             save_path: Directory to find file in
             save_fn: File name read in
         """
-        fp = Path(save_path, save_fn)
+        fp = Path(read_fp)
         self.logger.info(f"Reading self.df from {fp}")
         datetime_cols = [
             'dep_time',

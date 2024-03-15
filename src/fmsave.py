@@ -1,6 +1,6 @@
 """
 Usage:
-  fmsave.py dlhtml <fm_un> <chrome_path> <save_path> [--max-pages=MAX_PAGES]
+  fmsave.py dlhtml <fm_un> <save_path> [<chrome_path> --max-pages=MAX_PAGES]
   fmsave.py tocsv <gn_un> <read_path> <fsave>
   fmsave.py upcsv <gn_un> <read_path> <fread> <fsave>
   fmsave.py uptz  <gn_un> <fread> <fsave>
@@ -51,6 +51,8 @@ logging.config.dictConfig(config)
 
 APP_NAME = 'fmsave'
 logger = logging.getLogger(APP_NAME)
+
+DEFAULT_CHROME_PATH = '/Applications/Chromium.app/Contents/MacOS/Chromium'
 
 CHROME_OPTIONS = [
     '--headless',
@@ -104,8 +106,10 @@ if __name__ == '__main__':
     read_path = args['<read_path>']
 
     chrome_path = args['<chrome_path>']
-    if chrome_path is not None:
-        fd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
+    if chrome_path is None:
+        chrome_path = DEFAULT_CHROME_PATH
+
+    fd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
 
     if dlhtml:
         fm_un = args['<fm_un>']

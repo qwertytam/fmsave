@@ -1,11 +1,15 @@
 """
 Usage:
-  fmsave.py dlhtml <fm_un> <chrome_path> <save_path> [--max-pages=max_pages]
+  fmsave.py dlhtml <fm_un> <chrome_path> <save_path> [--max-pages=MAX_PAGES]
   fmsave.py tocsv <gn_un> <read_path> <fsave>
   fmsave.py upcsv <gn_un> <read_path> <fread> <fsave>
   fmsave.py uptz  <gn_un> <fread> <fsave>
   fmsave.py upair [<airurl>]
   fmsave.py -h | --help
+
+Options:
+  -h --help                     Show this screen
+  -m MAX_PAGES --max-pages=MAX_PAGES  Maximum number of html pages to download and save
 
 Commands:
   dlhtml    Download html pages
@@ -23,14 +27,10 @@ Arguments:
   gn_un         Geonames username
   read_path     Directory to read html files from
   save_path     Directory to save html files to
-  
-
-Options:
-  -h --help                     Show this screen
-  --max-html-pages=max_pages     Maximum number of html pages to download and save
-
 """
-import sys
+
+
+# import sys
 import getpass
 from fmdownload import FMDownloader, get_airport_data, _check_create_path
 
@@ -90,42 +90,41 @@ def update_tz():
 
 
 if __name__ == '__main__':
-
     args = docopt(__doc__)
 
-    airurl = args['airurl']
-    chrome_path = args['chrome_path']    
-    fm_un = args['fm_un']
-    fread = args['fread']
-    fsave = args['fsave']
-    gn_un = args['gn_un']
-    read_path = args['read_path']
-    save_path = args['save_path']
-    
     dlhtml = args['dlhtml']
     tocsv = args['tocsv']
     upair = args['upair']
     upcsv = args['upcsv']
     uptz = args['uptz']
     
-    max_pages = args['--max-html-pages']
-    if max_pages is not None:
-        max_pages = int(max_pages)
-    
-    csv_fn = args['--csvfn']
-    if csv_fn is None:
-        csv_fn = 'flights.csv'
-    
-    fd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
+    fread = args['<fread>']
+    fsave = args['<fsave>']
+    gn_un = args['<gn_un>']
+    read_path = args['<read_path>']
+
+    chrome_path = args['<chrome_path>']
+    if chrome_path is not None:
+        fd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
 
     if dlhtml:
+        fm_un = args['<fm_un>']
+        save_path = args['<save_path>']
+        max_pages = args['--max-pages']
+        if max_pages is not None:
+            max_pages = int(max_pages)
+
         dl_html(fd, fm_un, max_pages, save_path)
 
     if tocsv:
         html_to_csv(fd, gn_un, read_path, fsave)
 
     if upair:
-        get_airport_data(url=airurl)
+        airurl = args['<airurl>']
+        if airurl is None:
+            get_airport_data(logger=logger)
+        else:
+            get_airport_data(url=airurl, logger=logger)
 
     if upcsv:
         fdd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)

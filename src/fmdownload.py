@@ -48,7 +48,8 @@ DT_INFO_Y = "Y"
 
 def get_airport_data(
     url='https://davidmegginson.github.io/ourairports-data/airports.csv',
-    fp=AIRPORT_DATA_FILEPATH):
+    fp=AIRPORT_DATA_FILEPATH,
+    logger=module_logger):
     """
     Get ourairports data
 
@@ -57,12 +58,15 @@ def get_airport_data(
         fp: File path and name to save the data
 
     """
+    logger.debug(f"Updating airport data from {url}")
     query_parameters = {'downloadformat': 'csv'}
     response = requests.get(url, params=query_parameters)
     
     fp = Path(fp).resolve()
     with open(fp, mode='wb') as f:
         f.write(response.content)
+    
+    logger.debug("Completed update")
 
 
 def _get_str_for_pd(page):

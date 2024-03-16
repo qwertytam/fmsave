@@ -2,13 +2,15 @@
 Usage:
   fmsave.py dlhtml <fm_un> <save_path> [<chrome_path> --max-pages=MAX_PAGES]
   fmsave.py tocsv <gn_un> <read_path> <fsave>
-  fmsave.py upcsv <gn_un> <read_path> <fread> <fsave>
+  fmsave.py upcsv <gn_un> <read_path> <fread> <fsave> [--before=DDMMYYYY --after=DDMMYYYY]
   fmsave.py uptz  <gn_un> <fread> <fsave>
   fmsave.py upair [<airurl>]
   fmsave.py -h | --help
 
 Options:
-  -h --help                     Show this screen
+  -h --help  Show this screen
+  -b DDMMYYYY --before=DDMMYYYY Remove existing data for flights on or before this date
+  -a DDMMYYYY --after=DDMMYYYY Remove existing data for flights on or after this date
   -m MAX_PAGES --max-pages=MAX_PAGES  Maximum number of html pages to download and save
 
 Commands:
@@ -33,7 +35,7 @@ Arguments:
 # import sys
 import getpass
 from fmdownload import FMDownloader, get_airport_data, _check_create_path
-
+from datetime import datetime as dt
 from docopt import docopt
 
 # Set up logging
@@ -62,34 +64,47 @@ CHROME_OPTIONS = [
     ]
 
 def dl_html(fd, fm_un, max_pages, save_path):
-    # Download and save pages
     fm_pw = getpass.getpass(prompt="Flight Memory password:")
     fd.login(username=fm_un, password=fm_pw)
     fd.get_fm_pages(max_pages=max_pages)
     fd.save_fm_pages(save_path=save_path)
 
 def html_to_csv(fd, gn_un, read_path, fsave):
-    # Read in already saved pages
     fd.read_fm_pages(read_path=read_path)
     fd.fm_pages_to_pandas()
     fd.add_lat_lon()
     fd.add_timezones(gnusername=gn_un)
     fd.save_pandas_to_csv(save_fp=fsave)
 
-def update_csv(fd, fdd, read_path, fread, fsave):
-    fd.read_fm_pages(read_path=read_path)
-    fd.fm_pages_to_pandas()
-    fd.add_lat_lon()
+def update_csv(fdu, fde, read_path, fread, fsave, dbf, daf):
+    # Get updated data html
+    fdu.read_fm_pages(read_path=read_path)
+    fdu.fm_pages_to_pandas()
+    fdu.add_lat_lon()
     
-    fdd.read_pandas_from_csv(read_fp=fread)
-    fdd.find_updated_rows(fd)
-    fd.save_pandas_to_csv(save_fp=fsave)
+    # Get existing data from csv
+    fde.read_pandas_from_csv(read_fp=fread)
+    
+    # Delete unwanted rows
+    fde.remove_rows(dbf, daf)
+    
+    # Insert new flights
+    fde.find_updated_rows(fdu)
+    fd.add_timezones(gnusername=gn_un)
+    
+    #  Save to csv
+    fde.save_pandas_to_csv(save_fp=fsave)
 
-def update_tz():
+def update_tz(fd, gn_un, fread, fsave):
     fd.read_pandas_from_csv(read_fp=fread)
     fd.add_timezones(gnusername=gn_un)
     fd.save_pandas_to_csv(save_fp=fsave)
 
+def date_to_dt(ddmmyyyy):
+    if ddmmyyyy:
+        ddmmyyyy = dt.strptime(ddmmyyyy, "%d%m%Y")
+
+    return ddmmyyyy
 
 if __name__ == '__main__':
     args = docopt(__doc__)
@@ -131,8 +146,14 @@ if __name__ == '__main__':
             get_airport_data(url=airurl, logger=logger)
 
     if upcsv:
+        dbf = args['--before']
+        daf = args['--after']
+        
+        dbf = date_to_dt(dbf)
+        daf = date_to_dt(daf)
+
         fdd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
-        update_csv(fd, fdd, read_path, fread, fsave)
+        update_csv(fd, fdd, read_path, fread, fsave, dbf, daf)
 
     if uptz:
         update_tz(fd, gn_un, fread, fsave)

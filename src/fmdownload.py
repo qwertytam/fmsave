@@ -16,12 +16,9 @@ from geonames import GeoNames
 from geonames import (GeoNamesDateReturnError, GeoNamesStopError)
 from geonames import EMPTY_TZ_DICT
 from datetime import datetime as dt
-
-import pathlib
-
-mpath = pathlib.Path(__file__).parent.absolute()
-
 import logging
+
+mpath = Path(__file__).parent.absolute()
 
 APP_NAME = 'fmsave'
 _module_logger_name = f'{APP_NAME}.{__name__}'
@@ -272,13 +269,13 @@ class FMDownloader:
             read_path: Path to saved html files
             fext: File extension to filter on
         """
-        self.logger.debug(f"Scanning path '''{read_path}''' for '''*.{fext}'''")
+        self.logger.debug(f"Scanning path '{read_path}' for '*.{fext}'")
         page_files = list(Path(read_path).glob(f'*.{fext}'))
         
         if len(page_files) == 0:
-            raise ValueError("No '''*.{fext}''' files found to read in")
+            raise ValueError("No '*.{fext}' files found to read in")
 
-        self.logger.info(f"Found {len(page_files)} '''*.{fext}''' files")
+        self.logger.info(f"Found {len(page_files)} '*.{fext}' files")
         
         for page_num, page_file in enumerate(page_files):
             self.logger.debug(f"Reading file {page_num+1}: {page_file}")
@@ -465,6 +462,10 @@ class FMDownloader:
             ' ' + self.df.loc[~time_is_empty, col]
 
             self.df[col] = pd.to_datetime(self.df[col],
+                                          format='mixed',
+                                          dayfirst=True)
+
+        self.df['date_as_dt'] = pd.to_datetime(self.df['date'],
                                           format='mixed',
                                           dayfirst=True)
 
@@ -729,6 +730,7 @@ class FMDownloader:
         fp = Path(read_fp)
         self.logger.info(f"Reading self.df from {fp}")
         datetime_cols = [
+            'date_as_dt',
             'dep_time',
             'arr_time',
             'dep_date_str',
@@ -760,6 +762,8 @@ class FMDownloader:
             'name_org': str,
             'airline': str,
             'flightnum': str,
+            # 'date_as_dt': dt,
+            # 'ts': dt,
             'ident_dep': str,
             'name_dep': str,
             'lat_dep': float,
@@ -778,7 +782,6 @@ class FMDownloader:
             'dep_gmtoffset': float,
             'arr_tzid': str,
             'arr_gmtoffset': float,
-            # 'ts': dt,
         }
         self.df = pd.read_csv(fp, dtype=col_types)
         
@@ -791,6 +794,31 @@ class FMDownloader:
                 self.df[col])
 
         self.logger.debug(f"Have read in csv; df types:\n{self.df.dtypes}")
+
+
+    def remove_rows(self, dbf, daf):
+        
+        if dbf and daf:
+            self.logger.info("Removing rows between dates "
+                             f"dbf: {dbf} daf: {daf}")
+            rdrop = self.df[
+                (self.df['date_as_dt'] >= daf) & (self.df['date_as_dt'] <= dbf)].index
+        elif dbf:
+            self.logger.info("Removing dates before "
+                             f"dbf: {dbf}")
+            rdrop = self.df[(self.df['date_as_dt'] <= dbf)].index
+        elif daf:
+            self.logger.info("Removing dates after "
+                             f" daf: {daf}")
+            rdrop = self.df[(self.df['date_as_dt'] >= daf)].index
+        else:
+            self.logger.info("No valid date ranges to remove "
+                             f"dbf: {dbf} daf: {daf}")
+            rdrop = None
+
+        if rdrop is not None:
+            self.df = self.df.drop(rdrop)
+
 
     def find_updated_rows(self, fd_updated):
         on_cols = [
@@ -814,6 +842,7 @@ class FMDownloader:
             'name_org',
             'airline',
             'flightnum',
+            'date_as_dt',
             'ident_dep',
             'name_dep',
             'lat_dep',

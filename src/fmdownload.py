@@ -866,8 +866,6 @@ class FMDownloader:
             how='outer',
             indicator=True)
         
-        self.logger.info(f"cols are now\n{self.df[['dep_iata', 'date', 'dep_tzid']]}")
-        
         df_all.loc[df_all['ts_x'].isna(), 'ts_x'] = df_all.loc[df_all['ts_x'].isna(), 'ts_y']
         df_all.drop(columns=['ts_y', '_merge'], inplace=True)
         df_all.rename(

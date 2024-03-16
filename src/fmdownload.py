@@ -703,7 +703,7 @@ class FMDownloader:
                 self.logger.info(f"Updated index {index}"
                                  f"; have now updated {updated_flights} flights")
             else:
-                self.logger.debug(f"Skipping index {index}")
+                self.logger.info(f"Skipping index {index}")
                 next
 
     def save_pandas_to_csv(self, save_fp='flights.csv'):
@@ -865,6 +865,8 @@ class FMDownloader:
             on=on_cols,
             how='outer',
             indicator=True)
+        
+        self.logger.info(f"cols are now\n{self.df[['dep_iata', 'date', 'dep_tzid']]}")
         
         df_all.loc[df_all['ts_x'].isna(), 'ts_x'] = df_all.loc[df_all['ts_x'].isna(), 'ts_y']
         df_all.drop(columns=['ts_y', '_merge'], inplace=True)

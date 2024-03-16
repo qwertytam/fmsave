@@ -90,7 +90,7 @@ def update_csv(fdu, fde, read_path, fread, fsave, dbf, daf):
     
     # Insert new flights
     fde.find_updated_rows(fdu)
-    fd.add_timezones(gnusername=gn_un)
+    fde.add_timezones(gnusername=gn_un)
     
     #  Save to csv
     fde.save_pandas_to_csv(save_fp=fsave)

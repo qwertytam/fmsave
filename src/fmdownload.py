@@ -542,6 +542,71 @@ class FMDownloader:
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
         self.df['ts'] = dt.now()
 
+    def _try_keyword_lat_lon(self, airports):
+        """
+        Add airport latitude and longitude information to pandas data frame 
+        based on OpenAirports keywords.
+        
+        The function `add_lat_lon()` matches based on IATA codes. For those 
+        airports without an IATA code, this function uses OpenAirport keywords 
+        to match the airport information.
+        
+        Args:
+            airports: OpenAirports information passed from `add_lat_lon()`
+        """
+        
+        # key is airport columns
+        # value is self.df columns
+        LEG_DATA = {
+            'dep_iata': {'ident': 'ident_dep',
+                         'name': 'name_dep',
+                         'lat': 'lat_dep',
+                         'lon': 'lon_dep',
+                         'iso_country': 'iso_country_dep',
+                         'municipality': 'municipality_dep'},
+            'arr_iata': {'ident': 'ident_arr',
+                         'name': 'name_arr',
+                         'lat': 'lat_arr',
+                         'lon': 'lon_arr',
+                         'iso_country': 'iso_country_arr',
+                         'municipality': 'municipality_arr'},
+        }
+        
+        for leg in LEG_DATA:
+            narows = self.df[LEG_DATA[leg]['lat']].isna()
+            
+            # Taking only last four characters as added 'K' to denote
+            # using keyword column
+            idents = self.df.loc[narows, leg].apply(lambda x : x[-4:]).to_list()
+            self.logger.debug(f"Finding for {leg} {LEG_DATA[leg]}:\n{idents}")
+
+            res_rows = airports['keywords'].str.contains('|'.join(idents), na=False)
+            res = airports.loc[res_rows, :]
+            self.logger.debug(f"res:\n{res}")
+            
+            to_cols = [
+                LEG_DATA[leg]['name'],
+                LEG_DATA[leg]['lat'],
+                LEG_DATA[leg]['lon'],
+                LEG_DATA[leg]['iso_country'],
+                LEG_DATA[leg]['municipality'],
+            ]
+            
+            from_cols = [
+                'name',
+                'lat',
+                'lon',
+                'iso_country',
+                'municipality',
+            ]
+
+            self.logger.debug(f"Using info\n{airports.loc[res_rows, from_cols]}")
+            self.df.loc[narows, to_cols] = airports.loc[res_rows, from_cols].values
+            self.logger.debug(f"updated row\n{self.df.loc[narows, to_cols]}")
+        
+        self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
+
+
     def add_lat_lon(self, airport_data_file=AIRPORT_DATA_FILEPATH):
         """
         Add airport latitude and longitude information to pandas data frame
@@ -560,7 +625,8 @@ class FMDownloader:
              'longitude_deg',
              'iso_country',
              'municipality',
-             'iata_code']]
+             'iata_code',
+             'keywords']]
         
         airports = airports.rename(columns={
             'latitude_deg': 'lat',
@@ -570,22 +636,27 @@ class FMDownloader:
         self.logger.debug(f"\n{airports.dtypes}")
 
         self.df = self.df.join(
-            airports.set_index('iata_code'),
+            airports.loc[:, airports.columns != 'keywords'].set_index('iata_code'),
             how='left',
             on='dep_iata',
             lsuffix='_org',
             rsuffix='_dep')
 
         self.df = self.df.join(
-            airports.set_index('iata_code'),
+            airports.loc[:, airports.columns != 'keywords'].set_index('iata_code'),
             how='left',
             on='arr_iata',
             lsuffix='_dep',
             rsuffix='_arr')
         
+        self.df = self.df.rename(columns={
+            'name': 'name_arr',
+        })
+        
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
-
         self.logger.debug(f"Have added airport lat and lon data now have:\n{self.df.dtypes}")
+
+        self._try_keyword_lat_lon(airports)
 
     def _return_empty_tz_dict(self, row):
         tz = EMPTY_TZ_DICT
@@ -599,7 +670,7 @@ class FMDownloader:
         gn = GeoNames(username=gnusername)
         
         valid_date_pat = re.compile('\\d{4}-\\d{2}-\\d{2}')
-        self.logger.debug(f"\n{row}")
+        self.logger.debug(f"row\n{row}")
         for leg in legs:
             tzid_col = f"{leg}_tzid"
             gmtoffset_col = f"{leg}_gmtoffset"
@@ -607,7 +678,7 @@ class FMDownloader:
             lat = row[legs[leg]['lat']]
             lon = row[legs[leg]['lon']]
             date = row[legs[leg]['date']]
-            self.logger.debug(f"find_tz for {leg}: {lat} {lon} {date}")
+            self.logger.debug(f"find_tz for `{leg}`: `{lat}` `{lon}` `{date}`")
             
             valid_posn = not(math.isnan(lat) or math.isnan(lon))
             valid_date = valid_date_pat.match(str(date))
@@ -689,9 +760,22 @@ class FMDownloader:
                 blank_row_test = math.isnan(row[tz_cols[0]]) & \
                     pd.notna(row['dep_time'])
 
-            if update_blanks_only and blank_row_test:
+            valid_date_pat = re.compile('\\d{4}-\\d{2}-\\d{2}')
+            date_cols = ['dep_date_str', 'arr_date_str']
+            valid_date_test = True
+            for date_col in date_cols:
+                date_to_check = row[date_col]
+                valid_date = valid_date_pat.match(str(date_to_check))
+                if not valid_date and valid_date_test:
+                    valid_date_test = False
+                    
+                self.logger.debug(f"For date `{date_to_check}` "
+                                 f"pattern match is `{valid_date}` "
+                                 f"updated valid_date_test to {valid_date_test}")
+
+            if all([update_blanks_only, blank_row_test, valid_date_test]):
                 try:
-                    self.logger.info(f"Updating index {index}")
+                    self.logger.debug(f"Updating index {index}")
                     row = self._add_tz(row, gnusername=gnusername)
                     for tz_col in tz_cols:
                         self.df.loc[index, tz_col] = row[tz_col]
@@ -700,10 +784,14 @@ class FMDownloader:
                     self.logger.error(f"stopping due to:\n{err}")
                 
                 updated_flights += 1
-                self.logger.info(f"Updated index {index}"
-                                 f"; have now updated {updated_flights} flights")
+                self.logger.info(f"Updated index {index}; "
+                                 f"have now updated {updated_flights} flights")
             else:
-                self.logger.info(f"Skipping index {index}")
+                self.logger.debug(
+                    f"Skipping index {index} due to "
+                    f"update_blanks_only `{update_blanks_only}` "
+                    f"blank_row_test `{blank_row_test}` "
+                    f"valid_date_test `{valid_date_test}` ")
                 next
 
     def save_pandas_to_csv(self, save_fp='flights.csv'):
@@ -771,7 +859,7 @@ class FMDownloader:
             'iso_country_dep': str,
             'municipality_dep': str,
             'ident_arr': str,
-            'name': str,
+            'name_arr': str,
             'lat_arr': float,
             'lon_arr': float,
             'iso_country_arr': str,
@@ -817,10 +905,14 @@ class FMDownloader:
             rdrop = None
 
         if rdrop is not None:
+            self.logger.info(f"Removing {len(rdrop)} rows")
             self.df = self.df.drop(rdrop)
 
 
-    def find_updated_rows(self, fd_updated):
+    def insert_updated_rows(self, fd_updated):
+        self.logger.debug(f"self has types:\n{self.df.dtypes}")
+        self.logger.debug(f"fd_updated has types:\n{fd_updated.df.dtypes}")
+        
         on_cols = [
             'dep_iata',
             'dep_city_county_name',
@@ -850,16 +942,27 @@ class FMDownloader:
             'iso_country_dep',
             'municipality_dep',
             'ident_arr',
-            'name',
+            'name_arr',
             'lat_arr',
             'lon_arr',
             'iso_country_arr',
             'municipality_arr',]
         
+        # Replacing np.nan with empty strings; to to revert back later
         self.df = self.df.fillna(value='')
         fd_updated.df = fd_updated.df.fillna(value='')
+
+        # Sometimes end up with mixed type cols, so reverting to str for those
+        # that can be mixed
+        to_str_cols = [
+            'lat_dep',
+            'lon_dep',
+            'lat_arr',
+            'lon_arr']
+        self.df[to_str_cols] = self.df[to_str_cols].astype(str)
+        fd_updated.df[to_str_cols] = fd_updated.df[to_str_cols].astype(str)
+
         exc_cols = ['flight_index']
-        
         df_all = self.df.merge(
             fd_updated.df.loc[:, ~fd_updated.df.columns.isin(exc_cols)],
             on=on_cols,
@@ -877,3 +980,17 @@ class FMDownloader:
         sort_cols = ['date', 'dep_time', 'arr_time']
         self.df = df_all.sort_values(by=sort_cols)
         self.df['flight_index'] = range(1, len(self.df.index) + 1)
+        
+        self.logger.debug(f"Have inserted new data; now have:\n{self.df.dtypes}")
+                
+        # Need to replace empty str with np.nan
+        non_str_cols = ['lat_dep',
+                        'lon_dep',
+                        'lat_arr',
+                        'lon_arr',
+                        'dep_gmtoffset',
+                        'arr_gmtoffset',]
+        self.df[non_str_cols] = self.df[non_str_cols].replace(r'^\s*$', np.nan, regex=True)        
+        self.df[non_str_cols] = self.df[non_str_cols].astype(float)
+
+        self.logger.debug(f"Have replaced empty str now have:\n{self.df.dtypes}")

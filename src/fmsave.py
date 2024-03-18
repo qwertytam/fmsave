@@ -31,10 +31,8 @@ Arguments:
   save_path     Directory to save html files to
 """
 
-
-# import sys
 import getpass
-from fmdownload import FMDownloader, get_airport_data, _check_create_path
+from fmdownload import FMDownloader, get_airport_data
 from datetime import datetime as dt
 from docopt import docopt
 
@@ -89,7 +87,7 @@ def update_csv(fdu, fde, read_path, fread, fsave, dbf, daf):
     fde.remove_rows(dbf, daf)
     
     # Insert new flights
-    fde.find_updated_rows(fdu)
+    fde.insert_updated_rows(fdu)
     fde.add_timezones(gnusername=gn_un)
     
     #  Save to csv
@@ -102,7 +100,7 @@ def update_tz(fd, gn_un, fread, fsave):
 
 def date_to_dt(ddmmyyyy):
     if ddmmyyyy:
-        ddmmyyyy = dt.strptime(ddmmyyyy, "%d%m%Y")
+        ddmmyyyy = dt.strptime(ddmmyyyy, "%d-%m-%Y")
 
     return ddmmyyyy
 

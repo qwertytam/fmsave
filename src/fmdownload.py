@@ -591,7 +591,14 @@ class FMDownloader:
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
         self.logger.debug(f"Have added airport lat and lon data now have:\n{self.df.dtypes}")
 
-        self._try_keyword_lat_lon(airport_data)
+        # If any of the latitude columns are na, then lets try using
+        # keywords to match airport info
+        if self.df[['lat_dep', 'lat_arr']].isna().sum(1).sum(0):
+            self.logger.debug("Trying self._try_keyword_lat_lon(airport_data)")
+            self._try_keyword_lat_lon(airport_data)
+        else:
+            self.logger.debug("Didn't find any na lat rows in data")
+
 
     def _return_empty_tz_dict(self, row):
         tz = EMPTY_TZ_DICT

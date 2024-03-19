@@ -11,12 +11,14 @@ import re
 import numpy as np
 import pandas as pd
 from pathlib import Path
-import requests
 from geonames import GeoNames
 from geonames import (GeoNamesDateReturnError, GeoNamesStopError)
 from geonames import EMPTY_TZ_DICT
 from datetime import datetime as dt
 import logging
+
+import airport
+import utils
 
 mpath = Path(__file__).parent.absolute()
 
@@ -24,13 +26,6 @@ APP_NAME = 'fmsave'
 _module_logger_name = f'{APP_NAME}.{__name__}'
 module_logger = logging.getLogger(_module_logger_name)
 module_logger.info(f"Module {_module_logger_name} logger initialized")
-
-AIRPORT_DATA_FILEPATH = mpath.parent / 'data/airports.csv'
-
-# FM_SEAT_POSN = ['Window', 'Aisle', 'Middle']
-# FM_TRAVEL_CLASS = ['Economy', 'EconomyPlus', 'Business', 'First']
-# FM_FLIGHT_AS = ['Passenger', 'Crew', 'Cockpit']
-# FM_FLIGHT_REASON = ['Personal', 'Business', 'Virtual']
 
 DEFAULT_LEGS = {
     'dep': {'date': 'dep_date_str', 'lat': 'lat_dep', 'lon': 'lon_dep'},
@@ -41,29 +36,6 @@ DT_INFO_YMDT = "YMDT"
 DT_INFO_YMD = "YMD"
 DT_INFO_YM = "YM"
 DT_INFO_Y = "Y"
-
-
-def get_airport_data(
-    url='https://davidmegginson.github.io/ourairports-data/airports.csv',
-    fp=AIRPORT_DATA_FILEPATH,
-    logger=module_logger):
-    """
-    Get ourairports data
-
-    Args:
-        url: URL to get data from
-        fp: File path and name to save the data
-
-    """
-    logger.debug(f"Updating airport data from {url}")
-    query_parameters = {'downloadformat': 'csv'}
-    response = requests.get(url, params=query_parameters)
-    
-    fp = Path(fp).resolve()
-    with open(fp, mode='wb') as f:
-        f.write(response.content)
-    
-    logger.debug("Completed update")
 
 
 def _get_str_for_pd(page):
@@ -78,37 +50,6 @@ def _get_str_for_pd(page):
     
     return flight_tbl
 
-
-def _check_create_path(dir_path, logger=module_logger):
-    """
-    Check if path exists, if not, creates path
-    
-    Checks if `dir_path` contains a file (by looking for a `.` after any
-    slashes), resolves the path, then creates path if it does not already exist
-    
-    Args:
-        dir_path: String of path that might include a file
-    """
-    
-    pat_path = r'(\\+|/+)'
-    pat_file = r'\.'
-
-    path_splits = re.split(pat_path, dir_path)
-    fn_search = re.search(pat_file, ''.join(path_splits[-1:]))
-    
-    fp = Path(dir_path).resolve()
-    
-    logger.info(f"resolved path is {fp}")
-    
-    if fn_search is None:
-        # Did not find file in provided path
-        logger.info(f"Did not find file name for: {dir_path}")
-    else:
-        fp = fp.parents[0]
-        logger.info(f"Found file name for {dir_path} going with parents")
-    
-    logger.info(f"Checking and creating path for {fp}")
-    Path(fp).mkdir(parents=True, exist_ok=True)
 
 class FMDownloader:
 
@@ -248,7 +189,7 @@ class FMDownloader:
             prefix: Flight name prefix; preppended to page number
             fext: File extension to use
         """
-        _check_create_path(save_path)
+        utils.check_create_path(save_path)
 
         for page_num, page in enumerate(self.pages):
             fn = f'{prefix}{page_num+1:04d}.{fext}'
@@ -542,7 +483,7 @@ class FMDownloader:
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
         self.df['ts'] = dt.now()
 
-    def _try_keyword_lat_lon(self, airports):
+    def _try_keyword_lat_lon(self, airport_data):
         """
         Add airport latitude and longitude information to pandas data frame 
         based on OpenAirports keywords.
@@ -552,7 +493,7 @@ class FMDownloader:
         to match the airport information.
         
         Args:
-            airports: OpenAirports information passed from `add_lat_lon()`
+            airport_data: OpenAirports information passed from `add_lat_lon()`
         """
         
         # key is airport columns
@@ -580,8 +521,8 @@ class FMDownloader:
             idents = self.df.loc[narows, leg].apply(lambda x : x[-4:]).to_list()
             self.logger.debug(f"Finding for {leg} {LEG_DATA[leg]}:\n{idents}")
 
-            res_rows = airports['keywords'].str.contains('|'.join(idents), na=False)
-            res = airports.loc[res_rows, :]
+            res_rows = airport_data['keywords'].str.contains('|'.join(idents), na=False)
+            res = airport_data.loc[res_rows, :]
             self.logger.debug(f"res:\n{res}")
             
             to_cols = [
@@ -600,25 +541,19 @@ class FMDownloader:
                 'municipality',
             ]
 
-            self.logger.debug(f"Using info\n{airports.loc[res_rows, from_cols]}")
-            self.df.loc[narows, to_cols] = airports.loc[res_rows, from_cols].values
+            self.logger.debug(f"Using info\n{airport_data.loc[res_rows, from_cols]}")
+            self.df.loc[narows, to_cols] = airport_data.loc[res_rows, from_cols].values
             self.logger.debug(f"updated row\n{self.df.loc[narows, to_cols]}")
         
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
 
 
-    def add_lat_lon(self, airport_data_file=AIRPORT_DATA_FILEPATH):
+    def add_lat_lon(self):
         """
         Add airport latitude and longitude information to pandas data frame
-        
-        Args:
-            airport_data_file: file path and name to csv file that contains
-            required information. Typically using openflights information
         """
-        fp = Path(airport_data_file).resolve()
-        airports = pd.read_csv(fp)
-
-        airports = airports[
+        airport_data = airport.get_airport_data()
+        airport_data = airport_data[
             ['ident',
              'name',
              'latitude_deg',
@@ -628,22 +563,22 @@ class FMDownloader:
              'iata_code',
              'keywords']]
         
-        airports = airports.rename(columns={
+        airport_data = airport_data.rename(columns={
             'latitude_deg': 'lat',
             'longitude_deg': 'lon',
         })
         
-        self.logger.debug(f"\n{airports.dtypes}")
+        self.logger.debug(f"\n{airport_data.dtypes}")
 
         self.df = self.df.join(
-            airports.loc[:, airports.columns != 'keywords'].set_index('iata_code'),
+            airport_data.loc[:, airport_data.columns != 'keywords'].set_index('iata_code'),
             how='left',
             on='dep_iata',
             lsuffix='_org',
             rsuffix='_dep')
 
         self.df = self.df.join(
-            airports.loc[:, airports.columns != 'keywords'].set_index('iata_code'),
+            airport_data.loc[:, airport_data.columns != 'keywords'].set_index('iata_code'),
             how='left',
             on='arr_iata',
             lsuffix='_dep',
@@ -656,7 +591,7 @@ class FMDownloader:
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
         self.logger.debug(f"Have added airport lat and lon data now have:\n{self.df.dtypes}")
 
-        self._try_keyword_lat_lon(airports)
+        self._try_keyword_lat_lon(airport_data)
 
     def _return_empty_tz_dict(self, row):
         tz = EMPTY_TZ_DICT
@@ -802,7 +737,7 @@ class FMDownloader:
             save_path: Directory to save file to
             save_fn: File name to save file as
         """
-        _check_create_path(save_fp)
+        utils.check_create_path(save_fp)
         fp = Path(save_fp)
         self.logger.info(f"Saving self.df to {fp}")
         self.df.to_csv(fp, index=False)

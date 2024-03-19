@@ -32,7 +32,8 @@ Arguments:
 """
 
 import getpass
-from fmdownload import FMDownloader, get_airport_data
+from airport import update_airport_data
+from fmdownload import FMDownloader
 from datetime import datetime as dt
 from docopt import docopt
 
@@ -40,9 +41,9 @@ from docopt import docopt
 import logging
 import logging.config
 import yaml
-import pathlib
+from pathlib import Path
 
-mpath = pathlib.Path(__file__).parent.absolute()
+mpath = Path(__file__).parent.absolute()
 
 with open(mpath / 'logging.yaml','rt') as f:
     config=yaml.safe_load(f.read())
@@ -139,9 +140,9 @@ if __name__ == '__main__':
     if upair:
         airurl = args['<airurl>']
         if airurl is None:
-            get_airport_data(logger=logger)
+            update_airport_data(logger=logger)
         else:
-            get_airport_data(url=airurl, logger=logger)
+            update_airport_data(url=airurl, logger=logger)
 
     if upcsv:
         dbf = args['--before']

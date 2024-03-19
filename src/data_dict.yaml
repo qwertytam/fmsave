@@ -1,0 +1,170 @@
+version: 1
+
+flight_data:
+    columns:
+        flight_index:
+            type: str
+
+        date:
+            type: str
+            data: date
+
+        date_as_dt:
+            type: dt
+            data: date
+
+        dt_info:
+            type: str
+
+        iata_dep:
+            type: str
+            point: dep
+            data: iata
+
+        ident_dep:
+            type: str
+            point: dep
+            data: ident
+
+        date_str_dep:
+            type: dt
+            point: dep
+            data: date
+
+        time_dep:
+            type: dt
+            point: dep
+
+        tzid_dep:
+            type: str
+            point: dep
+            data: tzid
+
+        gmtoffset_dep:
+            type: float
+            point: dep
+            data: gmtoffset
+
+        name_dep:
+            type: str
+            point: dep
+
+        lat_dep:
+            type: float
+            point: dep
+            data: lat
+
+        lon_dep:
+            type: float
+            point: dep
+            data: lon
+
+        city_county_name_dep:
+            type: str
+            point: dep
+
+        iso_country_dep:
+            type: str
+            point: dep
+            data: iso_country
+
+        municipality_dep:
+            type: str
+            point: dep
+            data: municipality
+
+        iata_arr:
+            type: str
+            point: arr
+            data: iata
+
+        ident_arr:
+            type: str
+            point: arr
+            data: ident
+
+        date_str_arr:
+            type: dt
+            point: arr
+            data: date
+
+        time_arr:
+            type: dt
+            point: arr
+
+        tzid_arr:
+            type: str
+            point: arr
+            data: tzid
+
+        gmtoffset_arr:
+            type: float
+            point: arr
+            data: gmtoffset
+
+        name_arr:
+            type: str
+            point: arr
+
+        lat_arr:
+            type: float
+            point: arr
+            data: lat
+
+        lon_arr:
+            type: float
+            point: arr
+            data: lon
+
+        city_county_name_arr:
+            type: str
+            point: arr
+
+        iso_country_arr:
+            type: str
+            point: arr
+            data: iso_country
+
+        municipality_arr:
+            type: str
+            point: arr
+            data: municipality
+
+        dist:
+            type: int
+
+        dist_units:
+            type: str
+
+        duration:
+            type: td
+
+        airline:
+            type: str
+
+        flightnum:
+            type: str
+
+        airplane:
+            type: str
+
+        reg:
+            type: str
+
+        seat:
+            type: str
+
+        class:
+            type: str
+
+        reason:
+            type: str
+
+        role:
+            type: str
+
+        name_org:
+            type: str
+
+        ts:
+            type: dt

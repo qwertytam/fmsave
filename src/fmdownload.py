@@ -236,7 +236,8 @@ class FMDownloader:
         # Year only: YYYY or in regex r'^\d{4}'
         # Date only: DD-MM-YYYY or r'^\d{2}\.\d{2}\.\d{4}$'
         # Date with time: DD-MM-YYYY HH:MM or r'^\d{2}\.\d{2}\.\d{4}\s+\d{2}\:\d{2}$'
-        # Date, time with day offset: DD-MM-YYYY HH:MM +/-D or r'^\d{2}\.\d{2}\.\d{4}\s+\d{2}\:\d{2}\s+\d{2}\:\d{2}\s+(?:\+|\-)\d)$'
+        # Date, time with day offset: DD-MM-YYYY HH:MM +/-D or 
+        # r'^\d{2}\.\d{2}\.\d{4}\s+\d{2}\:\d{2}\s+\d{2}\:\d{2}\s+(?:\+|\-)\d)$'
         # Date with day offset: DD-MM-YYYY +/-D or r'^\d{2}\.\d{2}\.\d{4}\s+(?:\+|\-)\d)$'
         # Note there may be multiple spaces due to the collapsing of new lines
         
@@ -496,7 +497,8 @@ class FMDownloader:
 
         for leg in legs:
             data_leg_keys = utils.find_keys_containing(data_keys, leg)
-            leg_key = utils.get_parents_for_keys_with_all_values(data_dict, ['iata', leg])[0]
+            leg_key = utils.get_parents_for_keys_with_all_values(
+                data_dict, ['iata', leg])[0]
             leg_data[leg_key] = data_leg_keys[leg]
         
         for leg in leg_data:
@@ -676,7 +678,10 @@ class FMDownloader:
             # Now fill the rows with the date info we have for this leg
             if sum(fill_rows):
                 self.df.loc[fill_rows, time_date_cols[leg]['date']] = \
-                    self.df.loc[fill_rows, time_date_cols[leg]['time']].dt.strftime('%Y-%m-%d')
+                    pd.to_datetime(
+                        self.df.loc[
+                            fill_rows,
+                            time_date_cols[leg]['time']].dt.strftime('%Y-%m-%d'))
 
         # Can also get dates for where we have Year-Month-Day information
         fill_rows = (self.df['dt_info'] == DT_INFO_YMD)
@@ -706,8 +711,11 @@ class FMDownloader:
 
         # Determine which rows we want to update
         if update_blanks_only:
-            rows_to_update = self.df[tz_cols].replace('', np.nan, inplace=False).isna().any(axis=1)
-            rows_to_update = rows_to_update & ((self.df['dt_info'] == DT_INFO_YMDT) | (self.df['dt_info'] == DT_INFO_YMD))
+            rows_to_update = self.df[tz_cols].replace(
+                '', np.nan, inplace=False).isna().any(axis=1)
+            rows_to_update = rows_to_update & (
+                (self.df['dt_info'] == DT_INFO_YMDT) | \
+                    (self.df['dt_info'] == DT_INFO_YMD))
         else:
             rows_to_update = pd.Series(data=True, index=self.df.index)
 
@@ -754,7 +762,8 @@ class FMDownloader:
                     for tz_col in tz_cols:
                         self.df.loc[index, tz_col] = row[tz_col]
                 except GeoNamesStopError as err:
-                    self.logger.error(f"stopping due to:\n{err}")
+                    self.logger.error(f"Stopping due to:\n{err}")
+                    break
                 
                 updated_flights += 1
                 self.logger.debug(f"Updated index {index}; "

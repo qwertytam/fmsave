@@ -95,6 +95,7 @@ class GeoNames:
             code = error['value']
             msg = error['message']
             # http://www.geonames.org/export/webservice-exception.html
+            print("\n")
             if msg.startswith("user account not enabled to use"):
                 err_msg = f"GeoNamesUserAuthError: User has insufficient privilieges: {msg}\n"
                 self.logger.error(err_msg)

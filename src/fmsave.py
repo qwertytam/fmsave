@@ -2,8 +2,8 @@
 Usage:
   fmsave.py dlhtml <fm_un> <save_path> [<chrome_path> --max-pages=MAX_PAGES]
   fmsave.py tocsv <gn_un> <read_path> <fsave>
-  fmsave.py upcsv <gn_un> <read_path> <fread> <fsave> [--before=DDMMYYYY --after=DDMMYYYY]
-  fmsave.py uptz  <gn_un> <fread> <fsave>
+  fmsave.py upcsv <gn_un> <read_path> <fread> [<fsave> --before=DD-MM-YYYY --after=DD-MM-YYYY]
+  fmsave.py uptz  <gn_un> <fread> [<fsave>]
   fmsave.py upair [<airurl>]
   fmsave.py -h | --help
 
@@ -24,7 +24,7 @@ Arguments:
   airurl        URL to download airport info from
   chrome_path   Path to Chrome executable
   fm_un         Flight Memory username
-  fread         Path to and file name of csv file to read from
+  fread         Path to and file name of csv file to read from; overwritten is fsave not provided
   fsave         Path to and file name of csv file to save to
   gn_un         Geonames username
   read_path     Directory to read html files from
@@ -109,6 +109,9 @@ if __name__ == '__main__':
     
     fread = args['<fread>']
     fsave = args['<fsave>']
+    if fsave is None:
+        fsave = fread
+
     gn_un = args['<gn_un>']
     read_path = args['<read_path>']
 

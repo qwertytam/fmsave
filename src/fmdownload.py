@@ -16,9 +16,14 @@ from geonames import (GeoNamesDateReturnError, GeoNamesStopError)
 from geonames import EMPTY_TZ_DICT
 from datetime import datetime as dt
 import logging
+import yaml
 
 import airport
 import utils
+
+from constants import DT_INFO_YMDT, DT_INFO_YMD, DT_INFO_YM, DT_INFO_Y
+from constants import STR_TYPE_LU
+
 
 mpath = Path(__file__).parent.absolute()
 
@@ -27,16 +32,9 @@ _module_logger_name = f'{APP_NAME}.{__name__}'
 module_logger = logging.getLogger(_module_logger_name)
 module_logger.info(f"Module {_module_logger_name} logger initialized")
 
-DEFAULT_LEGS = {
-    'dep': {'date': 'dep_date_str', 'lat': 'lat_dep', 'lon': 'lon_dep'},
-    'arr': {'date': 'arr_date_str', 'lat': 'lat_arr', 'lon': 'lon_arr'}
-    }
-
-DT_INFO_YMDT = "YMDT"
-DT_INFO_YMD = "YMD"
-DT_INFO_YM = "YM"
-DT_INFO_Y = "Y"
-
+with open(mpath / 'data_dict.yaml','rt') as f:
+    data_dict = yaml.safe_load(f.read())
+    f.close()
 
 def _get_str_for_pd(page):
     sio = io.StringIO(page)
@@ -177,7 +175,7 @@ class FMDownloader:
 
         found_pages = len(self.pages) - pages_len
         pages_len = len(self.pages)
-        self.logger.info(f"Found {found_pages} pages; pages now {pages_len} long")
+        self.logger.info(f"Found {found_pages} pages and read {pages_len} in")
 
 
     def save_fm_pages(self, save_path, prefix='flightmemory', fext='html'):
@@ -198,7 +196,7 @@ class FMDownloader:
             with open(fp, 'w') as f:
                 f.write(page)
 
-        self.logger.info(f"Saved {page_num + 1} pages")
+        self.logger.info(f"Saved {page_num + 1} pages to {save_path}")
 
     def read_fm_pages(self, read_path, fext='html'):
         """
@@ -224,12 +222,10 @@ class FMDownloader:
             with open(page_file, 'r') as f:
                 self.pages.append(f.read())
         
-        self.logger.info(f"self.pages now length {len(self.pages)}")
+        self.logger.info(f"Have read in {len(self.pages)} pages")
 
 
     def _split_date_col(self):
-        self.logger.debug(f"_split_date_col()")
-
         # Column has the following formats
         # Year only: YYYY or in regex r'^\d{4}'
         # Date only: DD-MM-YYYY or r'^\d{2}\.\d{2}\.\d{4}$'
@@ -265,14 +261,14 @@ class FMDownloader:
 
         self.df[
             ['date',
-             'dep_time',
-             'arr_time',
+             'time_dep',
+             'time_arr',
              'date_offset']] = str_split
 
         self.df['dt_info'] = None
 
         # year, month, day and time available
-        condition = ~self.df['dep_time'].isna()
+        condition = ~self.df['time_dep'].isna()
         self.df.loc[condition, 'dt_info'] = DT_INFO_YMDT
 
         pat = r'(\d{2})-(\d{2})-(\d{4})'
@@ -309,7 +305,6 @@ class FMDownloader:
             .str.replace(pat=pat, repl=repl, regex=True)
 
     def _split_dist_col(self):
-        self.logger.debug(f"_split_dist_col()")
         self.df[
             ['dist',
              'dist_units',
@@ -320,8 +315,6 @@ class FMDownloader:
 
 
     def _split_seat_col(self):
-        self.logger.debug(f"_split_seat_col()")
-        
         expected_cols = 4
         str_split = self.df['seat_class_place'].str.split(' ',
                                                           expand=True,
@@ -350,7 +343,6 @@ class FMDownloader:
 
 
     def _split_airplane_col(self):
-        self.logger.debug(f"_split_airplane_col()")
         pat = '(?>\\s|^)('  # start of string 
         pat += '(?>N\\w{3,5})'  # for USA registrations
         pat += '|(?>[2BCDFGIPUZ]-\\w{3,4})'  # for registrations with single letter prefix
@@ -376,9 +368,6 @@ class FMDownloader:
 
 
     def _split_airline_col(self):
-        self.logger.debug(f"_split_airline_col()")
-
-        expected_cols = 2
         str_split = self.df['airline_flightnum']\
             .str.rsplit(' ', n=1, expand=True)
         
@@ -392,10 +381,10 @@ class FMDownloader:
 
 
     def _dates_to_dt(self):
-        self.logger.debug(f"_dates_to_dt()")
-        
-        time_cols = ['dep_time', 'arr_time']
-        self.logger.debug(f"\n{self.df.loc[0, ['date', 'dep_time', 'arr_time', 'date_offset']]}")
+        time_cols = utils.get_parents_for_keys_with_value(data_dict, 'time')
+        self.logger.debug(
+            f"\n{self.df.loc[0, ['date', 'time_dep', 'time_arr', 'date_offset']]}")
+
         for col in time_cols:
             time_is_empty =  self.df[col].isna()
 
@@ -413,12 +402,11 @@ class FMDownloader:
         self.df['date_offset'] = self.df['date_offset'].fillna(0)
         self.df['date_offset'] = pd.to_timedelta(
             pd.to_numeric(self.df['date_offset']), unit='days')
-        self.df['arr_time'] = self.df['arr_time'] \
+        self.df['time_arr'] = self.df['time_arr'] \
             + self.df['date_offset']
 
 
     def _duration_to_td(self):
-        self.logger.debug(f"_duration_to_td()")
         dur_hr_min = self.df['duration']\
             .str.split(':', expand=True).astype(int)
         self.df['duration'] = pd.to_timedelta(dur_hr_min[0], unit='h') + \
@@ -429,8 +417,6 @@ class FMDownloader:
         """
         Convert Flight Memory web pages to pandas data frame
         """
-        self.logger.debug(f"fm_pages_to_pandas()")
-        
         for idx, page in enumerate(self.pages):
             self.logger.debug(f"Reading page {idx+1} to self.df")
             flight_tbl = _get_str_for_pd(page)
@@ -439,7 +425,7 @@ class FMDownloader:
             self.df = pd.concat([self.df, df],
                                         ignore_index=True)
             
-        self.logger.info(f"Finished reading {idx+1} pages to self.df; "
+        self.logger.info(f"Finished reading in {idx+1} pages; "
                          f"read in {len(self.df.index):,} flights")
 
         self.df.drop(columns=['Options'], inplace=True)
@@ -447,10 +433,10 @@ class FMDownloader:
             columns={
                 self.df.columns[0]: 'flight_index',
                 self.df.columns[1]: 'date_dept_arr_offset',
-                self.df.columns[2]: 'dep_iata',
-                self.df.columns[3]: 'dep_city_county_name',
-                self.df.columns[4]: 'arr_iata',
-                self.df.columns[5]: 'arr_city_county_name',
+                self.df.columns[2]: 'iata_dep',
+                self.df.columns[3]: 'city_county_name_dep',
+                self.df.columns[4]: 'iata_arr',
+                self.df.columns[5]: 'city_county_name_arr',
                 self.df.columns[6]: 'dist_duration',
                 self.df.columns[7]: 'airline_flightnum',
                 self.df.columns[8]: 'airplane_reg_name',
@@ -498,39 +484,78 @@ class FMDownloader:
         
         # key is airport columns
         # value is self.df columns
-        LEG_DATA = {
-            'dep_iata': {'ident': 'ident_dep',
+        LEG_DATA_OLD = {
+            'iata_dep': {'ident': 'ident_dep',
                          'name': 'name_dep',
                          'lat': 'lat_dep',
                          'lon': 'lon_dep',
                          'iso_country': 'iso_country_dep',
                          'municipality': 'municipality_dep'},
-            'arr_iata': {'ident': 'ident_arr',
+            'iata_arr': {'ident': 'ident_arr',
                          'name': 'name_arr',
                          'lat': 'lat_arr',
                          'lon': 'lon_arr',
                          'iso_country': 'iso_country_arr',
                          'municipality': 'municipality_arr'},
         }
+
+        values = ['ident', 'name', 'lat', 'lon', 'iso_country', 'municipality']
+        data_keys =  utils.get_parents_with_key_values(
+            data_dict, 'data', values)
+
+        legs = ['dep', 'arr']
+        leg_data = {}
+        for leg in legs:
+            leg_data[leg] = utils.find_keys_containing(data_keys, leg)[leg]
+
+
+
+
+
+
+
+
+
+
+
+
+        values = ['ident', 'name', 'lat', 'lon', 'iso_country', 'municipality']
+        data_keys =  utils.get_parents_with_key_values(
+            data_dict, 'data', values)
+
+        legs = ['dep', 'arr']
+        leg_data = {}
+        for leg in legs:
+            data_leg_keys = utils.find_keys_containing(data_keys, leg)
+            leg_key = utils.get_parents_for_keys_with_all_values(data_dict, ['iata', leg])
+            leg_data[leg_key] = data_leg_keys
         
-        for leg in LEG_DATA:
-            narows = self.df[LEG_DATA[leg]['lat']].isna()
+        if sorted(set(LEG_DATA_OLD)) == sorted(set(leg_data)):
+            self.logger.info(f"KW LEG_DATA_OLD old and new equal")
+        else:
+            self.logger.info(f"KW LEG_DATA_OLD old and UNequal")
+            self.logger.info(f"KW LEG_DATA_OLD:\n{LEG_DATA_OLD}")
+            self.logger.info(f"KW leg_data:\n{leg_data}")
+            sys.exit()
+        
+        
+        for leg in leg_data:
+            narows = self.df[leg_data[leg]['lat']].isna()
             
             # Taking only last four characters as added 'K' to denote
             # using keyword column
             idents = self.df.loc[narows, leg].apply(lambda x : x[-4:]).to_list()
-            self.logger.debug(f"Finding for {leg} {LEG_DATA[leg]}:\n{idents}")
+            self.logger.debug(f"Finding for {leg} {leg_data[leg]}:\n{idents}")
 
             res_rows = airport_data['keywords'].str.contains('|'.join(idents), na=False)
             res = airport_data.loc[res_rows, :]
-            self.logger.debug(f"res:\n{res}")
             
             to_cols = [
-                LEG_DATA[leg]['name'],
-                LEG_DATA[leg]['lat'],
-                LEG_DATA[leg]['lon'],
-                LEG_DATA[leg]['iso_country'],
-                LEG_DATA[leg]['municipality'],
+                leg_data[leg]['name'],
+                leg_data[leg]['lat'],
+                leg_data[leg]['lon'],
+                leg_data[leg]['iso_country'],
+                leg_data[leg]['municipality'],
             ]
             
             from_cols = [
@@ -541,9 +566,7 @@ class FMDownloader:
                 'municipality',
             ]
 
-            self.logger.debug(f"Using info\n{airport_data.loc[res_rows, from_cols]}")
             self.df.loc[narows, to_cols] = airport_data.loc[res_rows, from_cols].values
-            self.logger.debug(f"updated row\n{self.df.loc[narows, to_cols]}")
         
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
 
@@ -567,20 +590,18 @@ class FMDownloader:
             'latitude_deg': 'lat',
             'longitude_deg': 'lon',
         })
-        
-        self.logger.debug(f"\n{airport_data.dtypes}")
 
         self.df = self.df.join(
             airport_data.loc[:, airport_data.columns != 'keywords'].set_index('iata_code'),
             how='left',
-            on='dep_iata',
+            on='iata_dep',
             lsuffix='_org',
             rsuffix='_dep')
 
         self.df = self.df.join(
             airport_data.loc[:, airport_data.columns != 'keywords'].set_index('iata_code'),
             how='left',
-            on='arr_iata',
+            on='iata_arr',
             lsuffix='_dep',
             rsuffix='_arr')
         
@@ -596,8 +617,6 @@ class FMDownloader:
         if self.df[['lat_dep', 'lat_arr']].isna().sum(1).sum(0):
             self.logger.debug("Trying self._try_keyword_lat_lon(airport_data)")
             self._try_keyword_lat_lon(airport_data)
-        else:
-            self.logger.debug("Didn't find any na lat rows in data")
 
 
     def _return_empty_tz_dict(self, row):
@@ -608,18 +627,30 @@ class FMDownloader:
         self.logger.debug(f"tz now:\n{tz}\n")
         return tz
 
-    def _add_tz(self, row, gnusername, legs=DEFAULT_LEGS):
+
+    def _add_tz(self, row, gnusername):
         gn = GeoNames(username=gnusername)
         
+        values = ['date', 'lat', 'lon', 'tzid', 'gmtoffset']
+        data_keys =  utils.get_parents_with_key_values(
+            data_dict, 'data', values)
+
+        legs = ['dep', 'arr']
+        leg_data = {}
+        for leg in legs:
+            leg_data[leg] = utils.find_keys_containing(data_keys, leg)[leg]
+        
+        self.logger.debug(f"leg_data is:\n{leg_data}")
         valid_date_pat = re.compile('\\d{4}-\\d{2}-\\d{2}')
         self.logger.debug(f"row\n{row}")
-        for leg in legs:
-            tzid_col = f"{leg}_tzid"
-            gmtoffset_col = f"{leg}_gmtoffset"
+        for leg in leg_data:
+            tzid_col = leg_data[leg]['tzid']
+            gmtoffset_col = leg_data[leg]['gmtoffset']
+
             
-            lat = row[legs[leg]['lat']]
-            lon = row[legs[leg]['lon']]
-            date = row[legs[leg]['date']]
+            lat = row[leg_data[leg]['lat']]
+            lon = row[leg_data[leg]['lon']]
+            date = row[leg_data[leg]['date']]
             self.logger.debug(f"find_tz for `{leg}`: `{lat}` `{lon}` `{date}`")
             
             valid_posn = not(math.isnan(lat) or math.isnan(lon))
@@ -635,7 +666,7 @@ class FMDownloader:
                                     timeout=3,
                                     maxretries=5)
                 except GeoNamesDateReturnError:
-                    self.logger.info(f"GeoNamesDateReturnError; using EMPTY_TZ_DICT")
+                    self.logger.debug(f"GeoNamesDateReturnError; using EMPTY_TZ_DICT")
                     tz = self._return_empty_tz_dict(row)
             else:
                 if not valid_date:
@@ -651,6 +682,7 @@ class FMDownloader:
 
         return row
 
+
     def add_timezones(self, gnusername, update_blanks_only=True, num_flights=None):
         """
         Add airport time zone information (IANA name and GMT offset) to pandas
@@ -661,25 +693,53 @@ class FMDownloader:
             update_blanks_only: Only update rows with no time zone information
             num_flights: Maximum number of flights (rows) to update
         """
-        self.logger.debug(f"add_timezones()")
         updated_flights = 0
         
-        fill_rows = self.df['dt_info'] == DT_INFO_YMDT 
-        self.df.loc[fill_rows, 'dep_date_str'] = \
-            self.df.loc[fill_rows, 'dep_time'].dt.strftime('%Y-%m-%d')
-        self.df.loc[fill_rows, 'arr_date_str'] = \
-            self.df.loc[fill_rows, 'arr_time'].dt.strftime('%Y-%m-%d')
+        
+        
+        values = ['date', 'lat', 'lon', 'tzid', 'gmtoffset']
+        data_keys =  utils.get_parents_with_key_values(
+            data_dict, 'data', values)
+
+        legs = ['dep', 'arr']
+        time_date_cols = {}
+        for leg in legs:
+            time_date_cols[leg] = utils.find_keys_containing(data_keys, leg)[leg]
+            fill_rows = self.df['dt_info'] == DT_INFO_YMDT
+            
+            self.logger.info(f"fill_rows YMDT is length {sum(fill_rows)}")
+            
+            if time_date_cols[leg]['date'] in self.df.columns:
+                fill_rows = fill_rows & (self.df[time_date_cols[leg]['date']].isna())
+                self.logger.info(f"fill_rows YMDT is now length {sum(fill_rows)}")
+            
+            self.df.loc[fill_rows, time_date_cols[leg]['date']] = \
+                self.df.loc[fill_rows, time_date_cols[leg]['time']].dt.strftime('%Y-%m-%d')
 
         fill_rows = (self.df['dt_info'] == DT_INFO_YMD)
-        self.df.loc[fill_rows, ['dep_date_str', 'arr_date_str']] = \
-            self.df.loc[fill_rows, 'date']
+        
+        self.logger.info(f"fill_rows YMD is length {sum(fill_rows)}")
+        
+        date_cols = [time_date_cols['dep']['date'],
+                     time_date_cols['arr']['date']]
+        if set(date_cols).issubset(set(self.df.columns)):
+            fill_rows = fill_rows & (self.df[date_cols].isna())
+            self.logger.info(f"fill_rows YMD is now length {sum(fill_rows)}")
+                
+        self.df.loc[fill_rows, date_cols] = self.df.loc[fill_rows, 'date']
+        
+        # self.df.loc[fill_rows, 'date_str_dep'] = \
+        #     self.df.loc[fill_rows, 'time_dep'].dt.strftime('%Y-%m-%d')
+        # self.df.loc[fill_rows, 'date_str_arr'] = \
+        #     self.df.loc[fill_rows, 'time_arr'].dt.strftime('%Y-%m-%d')
 
-        # self.df.loc[~ymdt_rows, ['dep_date_str', 'arr_date_str']] = pd.NaT
+        # fill_rows = (self.df['dt_info'] == DT_INFO_YMD)
+        # self.df.loc[fill_rows, ['date_str_dep', 'date_str_arr']] = \
+        #     self.df.loc[fill_rows, 'date']
 
-        tz_cols = ['dep_tzid',
-                   'dep_gmtoffset',
-                   'arr_tzid',
-                   'arr_gmtoffset']
+        tz_cols = utils.get_parents_list_with_key_values(
+            data_dict, 'data', ['tzid', 'gmtoffset'])
+
         new_cols = list(set(tz_cols).difference(self.df.columns))
         if not new_cols:
             self.logger.debug(f"No new_cols to add")
@@ -687,6 +747,12 @@ class FMDownloader:
             self.logger.debug(f"Adding new_cols: {new_cols}")
             for new_col in new_cols:
                 self.df[new_col] = ''
+
+        rows_to_update = self.df[new_cols].replace('', np.nan, inplace=False).isna()
+        print(f"rows to update:\n{rows_to_update}")
+        print(f"num rows to update:\n{sum(rows_to_update)}")
+        sys.exit()
+
 
         if num_flights is None:
             num_flights = len(self.df.index) + 1
@@ -697,13 +763,18 @@ class FMDownloader:
             self.logger.debug(f"row is:\n{row[tz_cols]}\n{row[tz_cols].dtypes}")
             if type(row[tz_cols[0]]) is str:
                 blank_row_test = (row[tz_cols[0]] == '') and \
-                    (row['dep_time'] is not None)
+                    (row['time_dep'] is not None)
             else:
                 blank_row_test = math.isnan(row[tz_cols[0]]) & \
-                    pd.notna(row['dep_time'])
+                    pd.notna(row['time_dep'])
 
             valid_date_pat = re.compile('\\d{4}-\\d{2}-\\d{2}')
-            date_cols = ['dep_date_str', 'arr_date_str']
+
+            date_dt_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['dt', 'date'])
+            date_dep_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['dep', 'date'])
+            date_arr_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['arr', 'date'])
+            date_cols = list(set(date_dt_cols) & (set(date_dep_cols) | set(date_arr_cols)))
+
             valid_date_test = True
             for date_col in date_cols:
                 date_to_check = row[date_col]
@@ -711,9 +782,10 @@ class FMDownloader:
                 if not valid_date and valid_date_test:
                     valid_date_test = False
                     
-                self.logger.debug(f"For date `{date_to_check}` "
-                                 f"pattern match is `{valid_date}` "
-                                 f"updated valid_date_test to {valid_date_test}")
+                self.logger.debug(
+                    f"For date `{date_to_check}` "
+                    f"pattern match is `{valid_date}` "
+                    f"updated valid_date_test to {valid_date_test}")
 
             if all([update_blanks_only, blank_row_test, valid_date_test]):
                 try:
@@ -721,7 +793,6 @@ class FMDownloader:
                     row = self._add_tz(row, gnusername=gnusername)
                     for tz_col in tz_cols:
                         self.df.loc[index, tz_col] = row[tz_col]
-
                 except GeoNamesStopError as err:
                     self.logger.error(f"stopping due to:\n{err}")
                 
@@ -748,7 +819,8 @@ class FMDownloader:
         fp = Path(save_fp)
         self.logger.info(f"Saving self.df to {fp}")
         self.df.to_csv(fp, index=False)
-    
+
+
     def read_pandas_from_csv(self, read_fp, save_fn='flights.csv'):
         """
         Read in csv to pandas data frame
@@ -759,60 +831,16 @@ class FMDownloader:
         """
         fp = Path(read_fp)
         self.logger.info(f"Reading self.df from {fp}")
-        datetime_cols = [
-            'date_as_dt',
-            'dep_time',
-            'arr_time',
-            'dep_date_str',
-            'arr_date_str',
-            'ts',
-        ]
-        timedelata_cols = [
-            'duration'
-        ]
-        col_types = {
-            'flight_index': str,
-            'dep_iata': str,
-            'dep_city_county_name': str,
-            'arr_iata': str,
-            'arr_city_county_name': str,
-            'date': str,
-            # 'dep_time': dt,
-            # 'arr_time': dt,
-            'dt_info': str,
-            'dist': int,
-            'dist_units': str,
-            # 'duration': td,
-            'reason': str,
-            'role': str,
-            'seat': str,
-            'class': str,
-            'airplane': str,
-            'reg': str,
-            'name_org': str,
-            'airline': str,
-            'flightnum': str,
-            # 'date_as_dt': dt,
-            # 'ts': dt,
-            'ident_dep': str,
-            'name_dep': str,
-            'lat_dep': float,
-            'lon_dep': float,
-            'iso_country_dep': str,
-            'municipality_dep': str,
-            'ident_arr': str,
-            'name_arr': str,
-            'lat_arr': float,
-            'lon_arr': float,
-            'iso_country_arr': str,
-            'municipality_arr': str,
-            # 'dep_date_str': dt,
-            # 'arr_date_str': dt,
-            'dep_tzid': str,
-            'dep_gmtoffset': float,
-            'arr_tzid': str,
-            'arr_gmtoffset': float,
-        }
+
+        datetime_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['dt'])
+        timedelata_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['td'])
+                
+        col_types = utils.get_parents_with_key_values(
+            data_dict,
+            key='type',
+            values=['float', 'str'])
+        col_types = utils.replace_item(col_types, STR_TYPE_LU)
+                
         self.df = pd.read_csv(fp, dtype=col_types)
         
         for col in datetime_cols:
@@ -854,41 +882,11 @@ class FMDownloader:
     def insert_updated_rows(self, fd_updated):
         self.logger.debug(f"self has types:\n{self.df.dtypes}")
         self.logger.debug(f"fd_updated has types:\n{fd_updated.df.dtypes}")
-        
-        on_cols = [
-            'dep_iata',
-            'dep_city_county_name',
-            'arr_iata',
-            'arr_city_county_name',
-            'date',
-            'dep_time',
-            'arr_time',
-            'dt_info',
-            'dist',
-            'dist_units',
-            'duration',
-            'reason',
-            'role',
-            'seat',
-            'class',
-            'airplane',
-            'reg',
-            'name_org',
-            'airline',
-            'flightnum',
-            'date_as_dt',
-            'ident_dep',
-            'name_dep',
-            'lat_dep',
-            'lon_dep',
-            'iso_country_dep',
-            'municipality_dep',
-            'ident_arr',
-            'name_arr',
-            'lat_arr',
-            'lon_arr',
-            'iso_country_arr',
-            'municipality_arr',]
+
+        on_cols = utils.get_parents_list_with_key_values(
+            data_dict,
+            key='update_merge_on',
+            values=[True])
         
         # Replacing np.nan with empty strings; to to revert back later
         self.df = self.df.fillna(value='')
@@ -896,11 +894,9 @@ class FMDownloader:
 
         # Sometimes end up with mixed type cols, so reverting to str for those
         # that can be mixed
-        to_str_cols = [
-            'lat_dep',
-            'lon_dep',
-            'lat_arr',
-            'lon_arr']
+        to_str_cols = utils.get_parents_list_with_key_values(
+            data_dict, 'data', ['lon', 'lat'])
+
         self.df[to_str_cols] = self.df[to_str_cols].astype(str)
         fd_updated.df[to_str_cols] = fd_updated.df[to_str_cols].astype(str)
 
@@ -919,19 +915,20 @@ class FMDownloader:
             errors='raise',
             )
 
-        sort_cols = ['date', 'dep_time', 'arr_time']
+        sort_cols = ['date', 'time_dep', 'time_arr']
         self.df = df_all.sort_values(by=sort_cols)
         self.df['flight_index'] = range(1, len(self.df.index) + 1)
         
         self.logger.debug(f"Have inserted new data; now have:\n{self.df.dtypes}")
                 
         # Need to replace empty str with np.nan
-        non_str_cols = ['lat_dep',
-                        'lon_dep',
-                        'lat_arr',
-                        'lon_arr',
-                        'dep_gmtoffset',
-                        'arr_gmtoffset',]
+        # non_str_cols = ['lat_dep',
+        #                 'lon_dep',
+        #                 'lat_arr',
+        #                 'lon_arr',
+        #                 'gmtoffset_dep',
+        #                 'gmtoffset_arr',]
+        non_str_cols = to_str_cols
         self.df[non_str_cols] = self.df[non_str_cols].replace(r'^\s*$', np.nan, regex=True)        
         self.df[non_str_cols] = self.df[non_str_cols].astype(float)
 

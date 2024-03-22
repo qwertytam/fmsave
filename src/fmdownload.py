@@ -695,51 +695,43 @@ class FMDownloader:
         """
         updated_flights = 0
         
-        
-        
-        values = ['date', 'lat', 'lon', 'tzid', 'gmtoffset']
+        # First get list of columns we're interested in using
+        values = ['date', 'time', 'lat', 'lon', 'tzid', 'gmtoffset']
         data_keys =  utils.get_parents_with_key_values(
             data_dict, 'data', values)
-
         legs = ['dep', 'arr']
         time_date_cols = {}
         for leg in legs:
+            # While we're getting the columns, will also see which rows have
+            # Year-Month-Day-Timezone information
             time_date_cols[leg] = utils.find_keys_containing(data_keys, leg)[leg]
             fill_rows = self.df['dt_info'] == DT_INFO_YMDT
-            
-            self.logger.info(f"fill_rows YMDT is length {sum(fill_rows)}")
+            self.logger.debug(f"fill_rows {leg} YMDT is length {sum(fill_rows)}")
             
             if time_date_cols[leg]['date'] in self.df.columns:
+                # Only want to fill rows where date is absent
                 fill_rows = fill_rows & (self.df[time_date_cols[leg]['date']].isna())
-                self.logger.info(f"fill_rows YMDT is now length {sum(fill_rows)}")
+                self.logger.debug(f"fill_rows {leg} YMDT is now length {sum(fill_rows)}")
             
+            # Now fill the rows with the date info we have for this leg
             self.df.loc[fill_rows, time_date_cols[leg]['date']] = \
                 self.df.loc[fill_rows, time_date_cols[leg]['time']].dt.strftime('%Y-%m-%d')
 
+        # Can also get dates for where we have Year-Month-Day information
         fill_rows = (self.df['dt_info'] == DT_INFO_YMD)
-        
-        self.logger.info(f"fill_rows YMD is length {sum(fill_rows)}")
-        
+        self.logger.debug(f"fill_rows YMD is length {sum(fill_rows)}")
         date_cols = [time_date_cols['dep']['date'],
                      time_date_cols['arr']['date']]
         if set(date_cols).issubset(set(self.df.columns)):
-            fill_rows = fill_rows & (self.df[date_cols].isna())
-            self.logger.info(f"fill_rows YMD is now length {sum(fill_rows)}")
-                
+            # Again, only fill rows where date info is abset
+            fill_rows = fill_rows & (self.df[date_cols].isna().any(axis=1))
+            self.logger.debug(f"fill_rows YMD is now length {sum(fill_rows)}")
         self.df.loc[fill_rows, date_cols] = self.df.loc[fill_rows, 'date']
-        
-        # self.df.loc[fill_rows, 'date_str_dep'] = \
-        #     self.df.loc[fill_rows, 'time_dep'].dt.strftime('%Y-%m-%d')
-        # self.df.loc[fill_rows, 'date_str_arr'] = \
-        #     self.df.loc[fill_rows, 'time_arr'].dt.strftime('%Y-%m-%d')
 
-        # fill_rows = (self.df['dt_info'] == DT_INFO_YMD)
-        # self.df.loc[fill_rows, ['date_str_dep', 'date_str_arr']] = \
-        #     self.df.loc[fill_rows, 'date']
-
+        # Now get timezone columns
         tz_cols = utils.get_parents_list_with_key_values(
             data_dict, 'data', ['tzid', 'gmtoffset'])
-
+        # See if we need to add columns
         new_cols = list(set(tz_cols).difference(self.df.columns))
         if not new_cols:
             self.logger.debug(f"No new_cols to add")
@@ -748,33 +740,34 @@ class FMDownloader:
             for new_col in new_cols:
                 self.df[new_col] = ''
 
-        rows_to_update = self.df[new_cols].replace('', np.nan, inplace=False).isna()
-        print(f"rows to update:\n{rows_to_update}")
-        print(f"num rows to update:\n{sum(rows_to_update)}")
-        sys.exit()
-
+        # Determine which rows we want to update
+        if update_blanks_only:
+            rows_to_update = self.df[new_cols].replace('', np.nan, inplace=False).isna().any(axis=1)
+            rows_to_update = rows_to_update & ((self.df['dt_info'] == DT_INFO_YMDT) | (self.df['dt_info'] == DT_INFO_YMD))
+        else:
+            rows_to_update = pd.Series(data=True, index=self.df.index)
 
         if num_flights is None:
-            num_flights = len(self.df.index) + 1
-        for index, row in self.df.iterrows():
+            num_flights = sum(rows_to_update)
+
+        self.logger.info(f"Adding time zones for {num_flights} flights")
+
+        print("\n")
+        utils.percent_complete(updated_flights, num_flights)
+        for index, row in self.df[rows_to_update].iterrows():
+            self.logger.debug(f"updated_flights: {updated_flights} "
+                             f"index: {index}")
             if updated_flights >= num_flights:
                 break
 
             self.logger.debug(f"row is:\n{row[tz_cols]}\n{row[tz_cols].dtypes}")
-            if type(row[tz_cols[0]]) is str:
-                blank_row_test = (row[tz_cols[0]] == '') and \
-                    (row['time_dep'] is not None)
-            else:
-                blank_row_test = math.isnan(row[tz_cols[0]]) & \
-                    pd.notna(row['time_dep'])
-
-            valid_date_pat = re.compile('\\d{4}-\\d{2}-\\d{2}')
 
             date_dt_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['dt', 'date'])
             date_dep_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['dep', 'date'])
             date_arr_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['arr', 'date'])
             date_cols = list(set(date_dt_cols) & (set(date_dep_cols) | set(date_arr_cols)))
 
+            valid_date_pat = re.compile('\\d{4}-\\d{2}-\\d{2}')
             valid_date_test = True
             for date_col in date_cols:
                 date_to_check = row[date_col]
@@ -787,7 +780,7 @@ class FMDownloader:
                     f"pattern match is `{valid_date}` "
                     f"updated valid_date_test to {valid_date_test}")
 
-            if all([update_blanks_only, blank_row_test, valid_date_test]):
+            if all([update_blanks_only, valid_date_test]):
                 try:
                     self.logger.debug(f"Updating index {index}")
                     row = self._add_tz(row, gnusername=gnusername)
@@ -797,15 +790,19 @@ class FMDownloader:
                     self.logger.error(f"stopping due to:\n{err}")
                 
                 updated_flights += 1
-                self.logger.info(f"Updated index {index}; "
-                                 f"have now updated {updated_flights} flights")
+                self.logger.debug(f"Updated index {index}; "
+                                 f"have now updated {updated_flights} flights "
+                                 f"out of {num_flights}")
             else:
                 self.logger.debug(
                     f"Skipping index {index} due to "
                     f"update_blanks_only `{update_blanks_only}` "
-                    f"blank_row_test `{blank_row_test}` "
                     f"valid_date_test `{valid_date_test}` ")
                 next
+            
+            utils.percent_complete(updated_flights, num_flights)
+        print("\n")
+
 
     def save_pandas_to_csv(self, save_fp='flights.csv'):
         """

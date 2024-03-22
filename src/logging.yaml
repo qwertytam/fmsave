@@ -2,7 +2,7 @@ version: 1
 
 formatters:
     simple:
-        format: "[%(levelname)s] %(name)s: %(message)s"
+        format: "[%(levelname)s] %(funcName)s (%(lineno)d): %(message)s"
 
     verbose:
         format: "[%(asctime)s] %(levelname)s [%(filename)s %(name)s %(funcName)s (%(lineno)d)]: %(message)s"

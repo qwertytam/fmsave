@@ -3,6 +3,7 @@ import sys
 from bs4 import BeautifulSoup as bs
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support.select import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
@@ -117,10 +118,16 @@ class FMDownloader:
             sys.exit()
 
 
+    def _get_number_of_pages(self):
+        select_element = self.driver.find_element(By.XPATH, '//select[@name="dbpos"]')
+        select = Select(select_element)
+        return len(select.options)
+
+
     def _get_outer_html(self):
         WDSCRIPT_OUTER_HTML = 'return document.documentElement.outerHTML'
         self.pages.append(self.driver.execute_script(WDSCRIPT_OUTER_HTML))
-
+        
 
     def _get_next_page(self, last_page_timeout=10):
         WebDriverWait(
@@ -128,8 +135,7 @@ class FMDownloader:
             last_page_timeout
             ).until(
                 EC.element_to_be_clickable((
-                        By.XPATH,
-                        "//img[contains(@src,'/images/next.gif')]"
+                        By.XPATH, "//img[contains(@src,'/images/next.gif')]"
                         ))
                 ).click()
 
@@ -143,35 +149,35 @@ class FMDownloader:
             last_page_timeout: How long to wait for the 'next.gif' load; if 
             timeout exceeded, then assumed we are at the last page
         """
-        self.logger.info("Starting data download")
 
         loop_counter = 0
         pages_len = len(self.pages)
+        num_pages_on_fm = self._get_number_of_pages()
+        self.logger.info(f"There are {num_pages_on_fm} pages to download from FM")
 
-        def _max_loops(loop_num):
-            if max_pages is None:
-                return True
-            elif loop_num < max_pages:
-                return True
-            else:
-                return False
+        if max_pages is None:
+            max_pages = num_pages_on_fm
 
-        while _max_loops(loop_counter):
+        print("\n")
+        utils.percent_complete(loop_counter, max_pages)
+        while loop_counter < max_pages:
             loop_counter += 1
-            self.logger.info(f"Entering loop {loop_counter}")
+            self.logger.debug(f"Getting page number: {loop_counter}")
             self._get_outer_html()
 
-            try:
-                self._get_next_page(last_page_timeout)
-                self.logger.debug(f"Found page for next loop at counter {loop_counter}")
+            if loop_counter < max_pages:
+                try:
+                    self._get_next_page(last_page_timeout)
+                    self.logger.debug(f"Found page for next loop at counter {loop_counter}")
 
-            except TimeoutException:
-                self.logger.info("TimeoutException; assuming at last page. "
-                                  f"Ending at loop {loop_counter}")
-                break
-        
-        if not _max_loops(loop_counter):
-            self.logger.debug(f"Exited loop as hit max for loop counter {loop_counter}")
+                except TimeoutException:
+                    self.logger.info(f"TimeoutException; ending at loop {loop_counter}")
+                    break
+            
+            utils.percent_complete(loop_counter, max_pages)
+
+        print("\n")
+        self.logger.debug(f"Exited loop as hit max for at {loop_counter}")
 
         found_pages = len(self.pages) - pages_len
         pages_len = len(self.pages)

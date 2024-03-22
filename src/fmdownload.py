@@ -714,8 +714,9 @@ class FMDownloader:
                 self.logger.debug(f"fill_rows {leg} YMDT is now length {sum(fill_rows)}")
             
             # Now fill the rows with the date info we have for this leg
-            self.df.loc[fill_rows, time_date_cols[leg]['date']] = \
-                self.df.loc[fill_rows, time_date_cols[leg]['time']].dt.strftime('%Y-%m-%d')
+            if sum(fill_rows):
+                self.df.loc[fill_rows, time_date_cols[leg]['date']] = \
+                    self.df.loc[fill_rows, time_date_cols[leg]['time']].dt.strftime('%Y-%m-%d')
 
         # Can also get dates for where we have Year-Month-Day information
         fill_rows = (self.df['dt_info'] == DT_INFO_YMD)
@@ -726,11 +727,14 @@ class FMDownloader:
             # Again, only fill rows where date info is abset
             fill_rows = fill_rows & (self.df[date_cols].isna().any(axis=1))
             self.logger.debug(f"fill_rows YMD is now length {sum(fill_rows)}")
-        self.df.loc[fill_rows, date_cols] = self.df.loc[fill_rows, 'date']
+
+        if sum(fill_rows):
+            self.df.loc[fill_rows, date_cols] = self.df.loc[fill_rows, 'date']
 
         # Now get timezone columns
         tz_cols = utils.get_parents_list_with_key_values(
             data_dict, 'data', ['tzid', 'gmtoffset'])
+
         # See if we need to add columns
         new_cols = list(set(tz_cols).difference(self.df.columns))
         if not new_cols:
@@ -742,7 +746,7 @@ class FMDownloader:
 
         # Determine which rows we want to update
         if update_blanks_only:
-            rows_to_update = self.df[new_cols].replace('', np.nan, inplace=False).isna().any(axis=1)
+            rows_to_update = self.df[tz_cols].replace('', np.nan, inplace=False).isna().any(axis=1)
             rows_to_update = rows_to_update & ((self.df['dt_info'] == DT_INFO_YMDT) | (self.df['dt_info'] == DT_INFO_YMD))
         else:
             rows_to_update = pd.Series(data=True, index=self.df.index)
@@ -751,6 +755,9 @@ class FMDownloader:
             num_flights = sum(rows_to_update)
 
         self.logger.info(f"Adding time zones for {num_flights} flights")
+        if num_flights == 0:
+            self.logger.info(f"No flights to update so ending add timezones")
+            return
 
         print("\n")
         utils.percent_complete(updated_flights, num_flights)

@@ -487,63 +487,17 @@ class FMDownloader:
         Args:
             airport_data: OpenAirports information passed from `add_lat_lon()`
         """
-        
-        # key is airport columns
-        # value is self.df columns
-        LEG_DATA_OLD = {
-            'iata_dep': {'ident': 'ident_dep',
-                         'name': 'name_dep',
-                         'lat': 'lat_dep',
-                         'lon': 'lon_dep',
-                         'iso_country': 'iso_country_dep',
-                         'municipality': 'municipality_dep'},
-            'iata_arr': {'ident': 'ident_arr',
-                         'name': 'name_arr',
-                         'lat': 'lat_arr',
-                         'lon': 'lon_arr',
-                         'iso_country': 'iso_country_arr',
-                         'municipality': 'municipality_arr'},
-        }
 
         values = ['ident', 'name', 'lat', 'lon', 'iso_country', 'municipality']
-        data_keys =  utils.get_parents_with_key_values(
-            data_dict, 'data', values)
+        data_keys =  utils.get_parents_with_key_values(data_dict, 'data', values)
 
         legs = ['dep', 'arr']
         leg_data = {}
-        for leg in legs:
-            leg_data[leg] = utils.find_keys_containing(data_keys, leg)[leg]
 
-
-
-
-
-
-
-
-
-
-
-
-        values = ['ident', 'name', 'lat', 'lon', 'iso_country', 'municipality']
-        data_keys =  utils.get_parents_with_key_values(
-            data_dict, 'data', values)
-
-        legs = ['dep', 'arr']
-        leg_data = {}
         for leg in legs:
             data_leg_keys = utils.find_keys_containing(data_keys, leg)
-            leg_key = utils.get_parents_for_keys_with_all_values(data_dict, ['iata', leg])
-            leg_data[leg_key] = data_leg_keys
-        
-        if sorted(set(LEG_DATA_OLD)) == sorted(set(leg_data)):
-            self.logger.info(f"KW LEG_DATA_OLD old and new equal")
-        else:
-            self.logger.info(f"KW LEG_DATA_OLD old and UNequal")
-            self.logger.info(f"KW LEG_DATA_OLD:\n{LEG_DATA_OLD}")
-            self.logger.info(f"KW leg_data:\n{leg_data}")
-            sys.exit()
-        
+            leg_key = utils.get_parents_for_keys_with_all_values(data_dict, ['iata', leg])[0]
+            leg_data[leg_key] = data_leg_keys[leg]
         
         for leg in leg_data:
             narows = self.df[leg_data[leg]['lat']].isna()

@@ -356,6 +356,7 @@ def percent_complete(step, total_steps, bar_width=60, title="", print_perc=True)
         if perc > 100.0:
             perc = 100.0            # Fix "100.04 %" rounding error
         disp += " {:6.2f}".format(perc) + " %"
+        disp += f"  {step:,} of {total_steps:,}"
     
     # Output to terminal repetitively over the same line using '\r'.
     sys.stdout.write("\r" + disp)

@@ -37,6 +37,8 @@ from fmdownload import FMDownloader
 from datetime import datetime as dt
 from docopt import docopt
 
+from constants import DEFAULT_CHROME_PATH, CHROME_OPTIONS
+
 # Set up logging
 import logging
 import logging.config
@@ -52,15 +54,6 @@ logging.config.dictConfig(config)
 
 APP_NAME = 'fmsave'
 logger = logging.getLogger(APP_NAME)
-
-DEFAULT_CHROME_PATH = '/Applications/Chromium.app/Contents/MacOS/Chromium'
-
-CHROME_OPTIONS = [
-    '--headless',
-    'start-maximized',
-    '--disable-blink-features',
-    '--disable-blink-features=AutomationControlled',
-    ]
 
 def dl_html(fd, fm_un, max_pages, save_path):
     fm_pw = getpass.getpass(prompt="Flight Memory password:")

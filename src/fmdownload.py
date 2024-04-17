@@ -250,9 +250,8 @@ class FMDownloader:
             .str.replace(pat=pat, repl=repl, regex=True)
         
         expected_cols = 4
-        str_split = self.df['date_dept_arr_offset'].str.split(' ',
-                                                              expand=True,
-                                                              n=expected_cols)
+        str_split = self.df['date_dept_arr_offset']\
+            .str.split(' ', expand=True, n=expected_cols)
         
         if len(str_split.columns) == 1:
             self.logger.debug("only one column, adding one more")
@@ -278,13 +277,13 @@ class FMDownloader:
         condition = ~self.df['time_dep'].isna()
         self.df.loc[condition, 'dt_info'] = DT_INFO_YMDT
 
-        pat = r'(\d{2})-(\d{2})-(\d{4})'
+        pat = r'(\d{2})\.(\d{2})\.(\d{4})'
         repl = r'\3-\2-\1'
         self.df.loc[condition, 'date'] = self.df.loc[condition, 'date']\
             .str.replace(pat=pat, repl=repl, regex=True) 
 
         # year, month, day only available
-        pat = r'(\d{2})-(\d{2})-(\d{4})'
+        pat = r'(\d{2})\.(\d{2})\.(\d{4})'
         condition = (self.df['dt_info'].isna()) & (self.df['date'].str.match(pat))
         self.df.loc[condition, 'dt_info'] = DT_INFO_YMD
         
@@ -293,7 +292,7 @@ class FMDownloader:
             .str.replace(pat=pat, repl=repl, regex=True)
 
         # year, month only available
-        pat = r'(\d{2})-(\d{4})'
+        pat = r'(\d{2})\.(\d{4})'
         condition = (self.df['dt_info'].isna()) & (self.df['date'].str.match(pat))
         self.df.loc[condition, 'dt_info'] = DT_INFO_YM
         
@@ -727,7 +726,7 @@ class FMDownloader:
             self.logger.info(f"No flights to update so ending add timezones")
             return
 
-        print("\n")
+        # print("\n")
         utils.percent_complete(updated_flights, num_flights)
         for index, row in self.df[rows_to_update].iterrows():
             self.logger.debug(f"updated_flights: {updated_flights} "
@@ -766,9 +765,10 @@ class FMDownloader:
                     break
                 
                 updated_flights += 1
-                self.logger.debug(f"Updated index {index}; "
-                                 f"have now updated {updated_flights} flights "
-                                 f"out of {num_flights}")
+                self.logger.debug(
+                    f"Updated index {index}; "
+                    f"have now updated {updated_flights} flights "
+                    f"out of {num_flights}")
             else:
                 self.logger.debug(
                     f"Skipping index {index} due to "
@@ -777,7 +777,7 @@ class FMDownloader:
                 next
             
             utils.percent_complete(updated_flights, num_flights)
-        print("\n")
+        # print("\n")
 
 
     def save_pandas_to_csv(self, save_fp='flights.csv'):

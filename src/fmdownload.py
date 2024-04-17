@@ -321,6 +321,11 @@ class FMDownloader:
 
 
     def _split_seat_col(self):
+        SEAT_POSITIONS = ['Window', 'Aisle', 'Middle']
+        CLASS = ['Economy', 'EconomyPlus', 'Business', 'First']
+        ROLE = ['Passenger', 'Crew', 'Cockpit']
+        REASON = ['Personal', 'Business', 'virtuell']
+
         expected_cols = 4
         str_split = self.df['seat_class_place'].str.split(' ',
                                                           expand=True,
@@ -339,13 +344,23 @@ class FMDownloader:
             str_split[3] = pd.Series('', index=str_split.index)
         
         self.df[[
-            'seat_class',
-            'reason',
+            'seat_position',
+            'class',
             'role',
             'reason']] = str_split
                  
-        self.df[['seat', 'class']] = self.df['seat_class']\
+        self.df[['seat', 'position']] = self.df['seat_position']\
             .str.split('\\/', expand=True)
+        
+        move_col_rows = self.df['class'].isin(ROLE)
+        self.df.loc[move_col_rows, 'reason'] = self.df.loc[move_col_rows, 'role']
+        self.df.loc[move_col_rows, 'role'] = self.df.loc[move_col_rows, 'class']
+        self.df.loc[move_col_rows, 'class'] = ''
+        
+        fp = Path('seats.csv')
+        self.logger.info(f"Saving self.df to {fp}")
+        self.df.to_csv(fp, index=False)
+        sys.exit()
 
 
     def _split_airplane_col(self):

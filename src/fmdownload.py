@@ -471,7 +471,6 @@ class FMDownloader:
         self.df.drop(['date_dept_arr_offset',
                       'dist_duration',
                       'seat_class_place',
-                      'seat_class',
                       'airplane_reg_name',
                       'airline_flightnum',
                     #   'date',

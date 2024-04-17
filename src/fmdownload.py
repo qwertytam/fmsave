@@ -392,11 +392,6 @@ class FMDownloader:
         repl = r'\1'
         self.df['airline'] = self.df['airline_flightnum']\
             .str.replace(pat=pat, repl=repl, regex=True)
-        
-        fp = Path('airline.csv')
-        self.logger.info(f"Saving self.df to {fp}")
-        self.df.to_csv(fp, index=False)
-        sys.exit()
 
 
     def _dates_to_dt(self):

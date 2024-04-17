@@ -181,15 +181,23 @@ flight_data:
             type: str
             update_merge_on: True
 
-        airplane:
+        airplane_type:
             type: str
             update_merge_on: True
 
-        reg:
+        airplane_reg:
+            type: str
+            update_merge_on: True
+
+        airplane_name:
             type: str
             update_merge_on: True
 
         seat:
+            type: str
+            update_merge_on: True
+
+        position:
             type: str
             update_merge_on: True
 
@@ -202,10 +210,6 @@ flight_data:
             update_merge_on: True
 
         role:
-            type: str
-            update_merge_on: True
-
-        name_org:
             type: str
             update_merge_on: True
 

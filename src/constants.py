@@ -2,6 +2,7 @@ from datetime import datetime as dt
 from datetime import timedelta as td
 
 DT_INFO_YMDT = "YMDT"
+DT_INFO_YMDO = "YMDO"
 DT_INFO_YMD = "YMD"
 DT_INFO_YM = "YM"
 DT_INFO_Y = "Y"

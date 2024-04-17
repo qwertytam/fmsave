@@ -22,7 +22,7 @@ import yaml
 import airport
 import utils
 
-from constants import DT_INFO_YMDT, DT_INFO_YMD, DT_INFO_YM, DT_INFO_Y
+from constants import DT_INFO_YMDT, DT_INFO_YMDO, DT_INFO_YMD, DT_INFO_YM, DT_INFO_Y
 from constants import STR_TYPE_LU
 
 
@@ -225,7 +225,7 @@ class FMDownloader:
         for page_num, page_file in enumerate(page_files):
             self.logger.debug(f"Reading file {page_num+1}: {page_file}")
             
-            with open(page_file, 'r') as f:
+            with open(page_file, 'r', encoding='utf-8') as f:
                 self.pages.append(f.read())
         
         self.logger.info(f"Have read in {len(self.pages)} pages")
@@ -243,7 +243,6 @@ class FMDownloader:
         
         # For the date with day offset case, need to ensure there are three
         # spaces for when we split into four columns
-        
         pat = r'^(\d{2}\.\d{2}\.\d{4})\s+((?:\+|\-)\d)'
         repl = r'\1   \2'
         self.df['date_dept_arr_offset'] = self.df['date_dept_arr_offset']\
@@ -274,14 +273,20 @@ class FMDownloader:
         self.df['dt_info'] = None
 
         # year, month, day and time available
-        condition = ~self.df['time_dep'].isna()
+        condition = self.df['time_dep'].str.len() > 0
         self.df.loc[condition, 'dt_info'] = DT_INFO_YMDT
+        
+        # year, month, day and offset available, but no time
+        condition = ~self.df['date_offset'].isna() & self.df['dt_info'].isna()
+        self.df.loc[condition, 'dt_info'] = DT_INFO_YMDO
 
+        # rearrange date by putting year first
         pat = r'(\d{2})\.(\d{2})\.(\d{4})'
         repl = r'\3-\2-\1'
+        condition = ~self.df['time_dep'].isna()
         self.df.loc[condition, 'date'] = self.df.loc[condition, 'date']\
             .str.replace(pat=pat, repl=repl, regex=True) 
-
+        
         # year, month, day only available
         pat = r'(\d{2})\.(\d{2})\.(\d{4})'
         condition = (self.df['dt_info'].isna()) & (self.df['date'].str.match(pat))
@@ -309,6 +314,7 @@ class FMDownloader:
         repl = '0'
         self.df['date_offset'] = self.df['date_offset']\
             .str.replace(pat=pat, repl=repl, regex=True)
+
 
     def _split_dist_col(self):
         self.df[
@@ -361,8 +367,11 @@ class FMDownloader:
     def _split_airplane_col(self):
         pat = '(?>\\s|^)('  # start of string 
         pat += '(?>N\\w{3,5})'  # for USA registrations
-        pat += '|(?>[2BCDFGIPUZ]-\\w{3,4})'  # for registrations with single letter prefix
-        pat += '|(?>\\w{2}-\\w{3,4})'  # all other country registrations
+        pat += '|(?>(?>HI|HL|JA|JR|UK|UR|YV)\\w{2,5})'  # for registrations with two letter prefix and four digit suffix, no dash
+        pat += '|(?>(?>2|B|C|D|F|G|I|M|P|U|Z)-\\w{2,5})'  # for registrations with single letter prefix
+        pat += '|(?>(?>3|4|5|6|7|8|9)[A-Z]-\\w{2,5})'  # for registrations with a prefix starting with a number then a letter
+        pat += '|(?>(?>C|D|E|H|J|L|O|P|R|S|T|U|V|X|Y|Z)\\w-\\w{2,5})'  # for registrations with a prefix starting with a letter from C onwards, then a number or a letter
+        pat += '|(?>A(?>[P2-8])-\\w{2,5})'  # for registrations with a prefix starting with `A` then a number or a letter
         pat += ')(?>\\s|$)'  # end of string
 
         expected_cols = 3
@@ -378,9 +387,9 @@ class FMDownloader:
             str_split[2] = pd.Series('', index=str_split.index)
 
         self.df[
-            ['airplane',
-             'reg',
-             'name']] = str_split
+            ['airplane_type',
+             'airplane_reg',
+             'airplane_name']] = str_split
 
 
     def _split_airline_col(self):
@@ -454,7 +463,7 @@ class FMDownloader:
                 self.df.columns[6]: 'dist_duration',
                 self.df.columns[7]: 'airline_flightnum',
                 self.df.columns[8]: 'airplane_reg_name',
-                self.df.columns[9]: 'seat_class_place'
+                self.df.columns[9]: 'seat_class_place',
                 },
             inplace=True,
             errors='raise',
@@ -473,7 +482,7 @@ class FMDownloader:
                       'seat_class_place',
                       'airplane_reg_name',
                       'airline_flightnum',
-                    #   'date',
+                      'seat_position',
                       'date_offset',
                       'duration_units'],
                 axis=1,
@@ -798,7 +807,7 @@ class FMDownloader:
         utils.check_create_path(save_fp)
         fp = Path(save_fp)
         self.logger.info(f"Saving self.df to {fp}")
-        self.df.to_csv(fp, index=False)
+        self.df.to_csv(fp, index=False, encoding='utf-8')
 
 
     def read_pandas_from_csv(self, read_fp, save_fn='flights.csv'):

@@ -356,11 +356,6 @@ class FMDownloader:
         self.df.loc[move_col_rows, 'reason'] = self.df.loc[move_col_rows, 'role']
         self.df.loc[move_col_rows, 'role'] = self.df.loc[move_col_rows, 'class']
         self.df.loc[move_col_rows, 'class'] = ''
-        
-        fp = Path('seats.csv')
-        self.logger.info(f"Saving self.df to {fp}")
-        self.df.to_csv(fp, index=False)
-        sys.exit()
 
 
     def _split_airplane_col(self):
@@ -389,16 +384,19 @@ class FMDownloader:
 
 
     def _split_airline_col(self):
-        str_split = self.df['airline_flightnum']\
-            .str.rsplit(' ', n=1, expand=True)
+        pat = r'(\w{2}\d{1,4})$'
+        self.df['flightnum'] = self.df['airline_flightnum']\
+            .str.extract(pat, expand=True)
         
-        if len(str_split.columns) == 1:
-            self.logger.debug("only one column, adding one more")
-            str_split[1] = pd.Series('', index=str_split.index)
-
-        self.df[
-            ['airline',
-             'flightnum']] = str_split
+        pat = r'(.+) ' + pat
+        repl = r'\1'
+        self.df['airline'] = self.df['airline_flightnum']\
+            .str.replace(pat=pat, repl=repl, regex=True)
+        
+        fp = Path('airline.csv')
+        self.logger.info(f"Saving self.df to {fp}")
+        self.df.to_csv(fp, index=False)
+        sys.exit()
 
 
     def _dates_to_dt(self):

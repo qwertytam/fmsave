@@ -57,7 +57,7 @@ APP_NAME = 'fmsave'
 logger = logging.getLogger(APP_NAME)
 
 
-def dl_html(fd, fm_un, max_pages, save_path):
+def dl_html(fd, max_pages, save_path):
     fd.fm_pw = logins.get_fm_pw()
     fd.login()
     fd.get_fm_pages(max_pages=max_pages)
@@ -135,13 +135,13 @@ if __name__ == '__main__':
     fd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
 
     if dlhtml:
-        fm_un = args['<fm_un>']
+        fd.fm_un = args['<fm_un>']
         save_path = args['<save_path>']
         max_pages = args['--max-pages']
         if max_pages is not None:
             max_pages = int(max_pages)
 
-        dl_html(fd, fm_un, max_pages, save_path)
+        dl_html(fd, max_pages, save_path)
 
     if tocsv:
         html_to_csv(fd, gn_un, read_path, fsave)

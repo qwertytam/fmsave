@@ -165,7 +165,6 @@ class FMDownloader:
         if max_pages is None:
             max_pages = num_pages_on_fm
 
-        print("\n")
         utils.percent_complete(loop_counter, max_pages)
         while loop_counter < max_pages:
             loop_counter += 1
@@ -459,6 +458,7 @@ class FMDownloader:
             self.login()
         
         loop_counter = 0
+        self.df['comment'] = ''
         urls = self.df.loc[self.df['comments'], 'detail_url']
         self.logger.debug(f"Have {len(urls)} urls to get")
         utils.percent_complete(loop_counter, len(urls))

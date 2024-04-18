@@ -68,7 +68,7 @@ def html_to_csv(fd, gn_un, read_path, fsave):
     fd.read_fm_pages(read_path=read_path)
     fd.fm_pages_to_pandas()
     fd.add_lat_lon()
-    fd.add_timezones(gnusername=gn_un)
+    # fd.add_timezones(gnusername=gn_un)
     fd.save_pandas_to_csv(save_fp=fsave)
 
 
@@ -102,9 +102,6 @@ def validate_dist_times(fd, fread, fsave):
     fd.read_pandas_from_csv(read_fp=fread)
     fd.validate_distance_times()
     fd.save_pandas_to_csv(save_fp=fsave)
-    
-
-
 
 
 def date_to_dt(ddmmyyyy):

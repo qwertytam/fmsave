@@ -439,6 +439,12 @@ class FMDownloader:
             pd.to_timedelta(dur_hr_min[1], unit='m')
 
 
+    def _notes_detailurl(self):
+        pat = r'Note '
+        self.df['notes'] = self.df['notes_detail_url'].str.contains(pat=pat, regex=True)
+        # self.df.loc[self.df['notes']=='True', 'notes'] = 'yes'
+
+
     def fm_pages_to_pandas(self):
         """
         Convert Flight Memory web pages to pandas data frame
@@ -454,7 +460,6 @@ class FMDownloader:
         self.logger.info(f"Finished reading in {idx+1} pages; "
                          f"read in {len(self.df.index):,} flights")
 
-        self.df.drop(columns=['Options'], inplace=True)
         self.df.rename(
             columns={
                 self.df.columns[0]: 'flight_index',
@@ -467,6 +472,7 @@ class FMDownloader:
                 self.df.columns[7]: 'airline_flightnum',
                 self.df.columns[8]: 'airplane_reg_name',
                 self.df.columns[9]: 'seat_class_place',
+                self.df.columns[10]: 'notes_detail_url',
                 },
             inplace=True,
             errors='raise',
@@ -479,6 +485,7 @@ class FMDownloader:
         self._split_airline_col()
         self._dates_to_dt()
         self._duration_to_td()
+        self._notes_detailurl()
 
         self.df.drop(['date_dept_arr_offset',
                       'dist_duration',
@@ -487,7 +494,8 @@ class FMDownloader:
                       'airline_flightnum',
                       'seat_position',
                       'date_offset',
-                      'duration_units'],
+                      'duration_units',
+                      'notes_detail_url'],
                 axis=1,
                 inplace=True)
 
@@ -935,4 +943,4 @@ class FMDownloader:
         self.df['duration_validated'] = fmvalidate.calc_duration(self.df, 'time_dep', 'time_arr', 'gmtoffset_dep', 'gmtoffset_arr')
         self.df['dur_pct_err'] = (self.df['duration'] - self.df['duration_validated']) / self.df['duration'] * 100
         self.df['dur_pct_err'] = self.df['dist_pct_err'].abs()
-
+    

@@ -6,6 +6,7 @@ Usage:
   fmsave.py uptz  <gn_un> <fread> [<fsave>]
   fmsave.py validate <fread> [<fsave>]
   fmsave.py upair [<airurl>]
+  fmsave.py upof
   fmsave.py -h | --help
 
 Options:
@@ -18,6 +19,7 @@ Commands:
   dlhtml    Download html pages
   tocsv     Convert html pages into a csv file
   upair     Update airport info data file
+  upof      Update openflights data files
   upcsv     Update existing csv file based on downloaded html pages
   uptz      Update timezone information in existing csv file
 
@@ -33,7 +35,7 @@ Arguments:
 """
 
 import logins
-from data import update_ourairport_data
+from data import update_ourairport_data, update_openflights_data
 from fmdownload import FMDownloader
 from datetime import datetime as dt
 from docopt import docopt
@@ -116,6 +118,7 @@ if __name__ == '__main__':
     dlhtml = args['dlhtml']
     tocsv = args['tocsv']
     upair = args['upair']
+    upof = args['upof']
     upcsv = args['upcsv']
     uptz = args['uptz']
     validate = args['validate']
@@ -152,6 +155,9 @@ if __name__ == '__main__':
             update_ourairport_data(logger=logger)
         else:
             update_ourairport_data(url=airurl, logger=logger)
+
+    if upof:
+        update_openflights_data(logger=logger)
 
     if upcsv:
         dbf = args['--before']

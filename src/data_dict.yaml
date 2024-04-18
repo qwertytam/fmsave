@@ -213,7 +213,11 @@ flight_data:
             type: str
             update_merge_on: True
 
-        notes:
+        comments:
+            type: bool
+            update_merge_on: True
+
+        comment:
             type: str
             update_merge_on: True
 

@@ -19,6 +19,7 @@ from datetime import datetime as dt
 import logging
 import yaml
 
+import logins
 import airport
 import utils
 import fmvalidate
@@ -78,11 +79,16 @@ class FMDownloader:
         # Structures to hold web page data
         self.pages = []
         self.df = pd.DataFrame()
-
+        
+        # hold login status
+        self.logged_in = False
+        self.fm_pw = None
+        self.fm_un = None
+        # check if logged in...if not login; go to url (if find login box, then log in, try url again, if still fail exit); get notes based on 'name="kommentar"'
 
     def login(self,
-              username,
-              password,
+              username=None,
+              password=None,
               login_page='https://www.flightmemory.com/',
               timeout=5):
         """
@@ -96,6 +102,9 @@ class FMDownloader:
         """
         self.logger.info("Start login")
         self.driver.get(login_page)
+        
+        if username is None: username = self.fm_un
+        if password is None: password = self.fm_pw
 
         wait = WebDriverWait(self.driver, timeout)
         wait.until(EC.element_to_be_clickable(
@@ -114,6 +123,7 @@ class FMDownloader:
             wait.until(EC.element_to_be_clickable(
                 (By.XPATH, "//*[contains(text(), 'FLIGHTDATA')]"))).click()
             self.logger.info("Found `FLIGHTDATA`; assumed login successful")
+            self.logged_in = True
         except TimeoutException:
             self.logger.error("TimeoutException: Assuming wrong credentials; exiting")
             sys.exit()
@@ -131,14 +141,10 @@ class FMDownloader:
         
 
     def _get_next_page(self, last_page_timeout=10):
-        WebDriverWait(
-            self.driver,
-            last_page_timeout
-            ).until(
-                EC.element_to_be_clickable((
-                        By.XPATH, "//img[contains(@src,'/images/next.gif')]"
-                        ))
-                ).click()
+        WebDriverWait(self.driver, last_page_timeout)\
+            .until(EC.element_to_be_clickable(
+                (By.XPATH, "//img[contains(@src,'/images/next.gif')]")
+                )).click()
 
 
     def get_fm_pages(self, max_pages=None, last_page_timeout=5):
@@ -439,11 +445,31 @@ class FMDownloader:
             pd.to_timedelta(dur_hr_min[1], unit='m')
 
 
-    def _notes_detailurl(self):
+    def _comments_detailurl(self):
         pat = r'Note '
-        self.df['notes'] = self.df['notes_detail_url'].str.contains(pat=pat, regex=True)
-        # self.df.loc[self.df['notes']=='True', 'notes'] = 'yes'
+        self.df['comments'] = self.df['comments_detail_url']\
+            .str.contains(pat=pat, regex=True)
 
+
+    def get_comments(self):
+        if not self.logged_in:
+            self.logger.info("Found comments to download; need to login to flightmemory.com")
+            if self.fm_un is None: self.fm_un = logins.get_fm_un()
+            if self.fm_pw is None: self.fm_pw = logins.get_fm_pw()
+            self.login()
+        
+        loop_counter = 0
+        urls = self.df.loc[self.df['comments'], 'detail_url']
+        self.logger.debug(f"Have {len(urls)} urls to get")
+        utils.percent_complete(loop_counter, len(urls))
+        for url in urls:
+            self.logger.debug(f"Getting: {url}")
+            self.driver.get(url)
+            comment = self.driver.find_element(By.NAME, 'kommentar').text
+            self.df.loc[self.df['detail_url'] == url, 'comment'] = comment
+            loop_counter += 1
+            utils.percent_complete(loop_counter, len(urls))
+        print("\n")
 
     def links_from_options(self, table):
         BASE_URL = 'https://www.flightmemory.com/signin/'
@@ -485,7 +511,7 @@ class FMDownloader:
                 self.df.columns[7]: 'airline_flightnum',
                 self.df.columns[8]: 'airplane_reg_name',
                 self.df.columns[9]: 'seat_class_place',
-                self.df.columns[10]: 'notes_detail_url',
+                self.df.columns[10]: 'comments_detail_url',
                 },
             inplace=True,
             errors='raise',
@@ -498,7 +524,11 @@ class FMDownloader:
         self._split_airline_col()
         self._dates_to_dt()
         self._duration_to_td()
-        self._notes_detailurl()
+        self._comments_detailurl()
+        
+        self.logger.info(f"we have {self.df['comments'].sum()} notes")
+        if self.df['comments'].sum() > 0:
+            self.get_comments()
 
         self.df.drop(['date_dept_arr_offset',
                       'dist_duration',
@@ -508,7 +538,7 @@ class FMDownloader:
                       'seat_position',
                       'date_offset',
                       'duration_units',
-                      'notes_detail_url'],
+                      'comments_detail_url'],
                 axis=1,
                 inplace=True)
 
@@ -766,7 +796,6 @@ class FMDownloader:
             self.logger.info(f"No flights to update so ending add timezones")
             return
 
-        # print("\n")
         utils.percent_complete(updated_flights, num_flights)
         for index, row in self.df[rows_to_update].iterrows():
             self.logger.debug(f"updated_flights: {updated_flights} "
@@ -817,7 +846,6 @@ class FMDownloader:
                 next
             
             utils.percent_complete(updated_flights, num_flights)
-        # print("\n")
 
 
     def save_pandas_to_csv(self, save_fp='flights.csv'):

@@ -32,7 +32,7 @@ Arguments:
   save_path     Directory to save html files to
 """
 
-import getpass
+import logins
 from airport import update_airport_data
 from fmdownload import FMDownloader
 from datetime import datetime as dt
@@ -58,8 +58,8 @@ logger = logging.getLogger(APP_NAME)
 
 
 def dl_html(fd, fm_un, max_pages, save_path):
-    fm_pw = getpass.getpass(prompt="Flight Memory password:")
-    fd.login(username=fm_un, password=fm_pw)
+    fd.fm_pw = logins.get_fm_pw()
+    fd.login()
     fd.get_fm_pages(max_pages=max_pages)
     fd.save_fm_pages(save_path=save_path)
 
@@ -68,7 +68,7 @@ def html_to_csv(fd, gn_un, read_path, fsave):
     fd.read_fm_pages(read_path=read_path)
     fd.fm_pages_to_pandas()
     fd.add_lat_lon()
-    # fd.add_timezones(gnusername=gn_un)
+    fd.add_timezones(gnusername=gn_un)
     fd.save_pandas_to_csv(save_fp=fsave)
 
 

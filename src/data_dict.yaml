@@ -217,5 +217,9 @@ flight_data:
             type: str
             update_merge_on: True
 
+        detail_url:
+            type: str
+            update_merge_on: True
+
         ts:
             type: dt

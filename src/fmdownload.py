@@ -445,6 +445,17 @@ class FMDownloader:
         # self.df.loc[self.df['notes']=='True', 'notes'] = 'yes'
 
 
+    def links_from_options(self, table):
+        BASE_URL = 'https://www.flightmemory.com/signin/'
+        links = []
+        for tr in table.findAll('tr'):
+            trs = tr.findAll('td')
+            if len(trs) > 0:
+                link = trs[-1].find_all(lambda t: t.name == 'option' and re.compile("edit"))[1]
+                links.append(BASE_URL + link.get('value'))
+        
+        return links
+
     def fm_pages_to_pandas(self):
         """
         Convert Flight Memory web pages to pandas data frame
@@ -453,10 +464,12 @@ class FMDownloader:
             self.logger.debug(f"Reading page {idx+1} to self.df")
             flight_tbl = _get_str_for_pd(page)
             df = pd.read_html(
-                    io.StringIO(str(flight_tbl)), flavor='bs4')[0]
+                    io.StringIO(str(flight_tbl)),
+                    flavor='bs4',)[0]
+            df['detail_url'] = self.links_from_options(flight_tbl)
             self.df = pd.concat([self.df, df],
                                         ignore_index=True)
-            
+
         self.logger.info(f"Finished reading in {idx+1} pages; "
                          f"read in {len(self.df.index):,} flights")
 

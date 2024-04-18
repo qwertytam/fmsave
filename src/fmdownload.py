@@ -21,6 +21,7 @@ import yaml
 
 import airport
 import utils
+import fmvalidate
 
 from constants import DT_INFO_YMDT, DT_INFO_YMDO, DT_INFO_YMD, DT_INFO_YM, DT_INFO_Y
 from constants import STR_TYPE_LU
@@ -279,11 +280,13 @@ class FMDownloader:
         # year, month, day and offset available, but no time
         condition = ~self.df['date_offset'].isna() & self.df['dt_info'].isna()
         self.df.loc[condition, 'dt_info'] = DT_INFO_YMDO
+        self.df.loc[condition, 'time_dep'] = None
+        self.df.loc[condition, 'time_arr'] = None
 
         # rearrange date by putting year first
         pat = r'(\d{2})\.(\d{2})\.(\d{4})'
         repl = r'\3-\2-\1'
-        condition = ~self.df['time_dep'].isna()
+        condition = ~self.df['dt_info'].isna()
         self.df.loc[condition, 'date'] = self.df.loc[condition, 'date']\
             .str.replace(pat=pat, repl=repl, regex=True) 
         
@@ -922,3 +925,14 @@ class FMDownloader:
         self.df[non_str_cols] = self.df[non_str_cols].astype(float)
 
         self.logger.debug(f"Have replaced empty str now have:\n{self.df.dtypes}")
+
+
+    def validate_distance_times(self):
+        self.df['dist_validated'] = fmvalidate.calc_distance(self.df, 'lat_dep', 'lon_dep', 'lat_arr', 'lon_arr')
+        self.df['dist_pct_err'] = (self.df['dist'] - self.df['dist_validated']) / self.df['dist'] * 100
+        self.df['dist_pct_err'] = self.df['dist_pct_err'].abs()
+        
+        self.df['duration_validated'] = fmvalidate.calc_duration(self.df, 'time_dep', 'time_arr', 'gmtoffset_dep', 'gmtoffset_arr')
+        self.df['dur_pct_err'] = (self.df['duration'] - self.df['duration_validated']) / self.df['duration'] * 100
+        self.df['dur_pct_err'] = self.df['dist_pct_err'].abs()
+

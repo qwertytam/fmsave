@@ -22,3 +22,5 @@ CHROME_OPTIONS = [
     '--disable-blink-features',
     '--disable-blink-features=AutomationControlled',
     ]
+
+MINS_PER_HOUR = 60

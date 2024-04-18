@@ -4,6 +4,7 @@ Usage:
   fmsave.py tocsv <gn_un> <read_path> <fsave>
   fmsave.py upcsv <gn_un> <read_path> <fread> [<fsave> --before=DD-MM-YYYY --after=DD-MM-YYYY]
   fmsave.py uptz  <gn_un> <fread> [<fsave>]
+  fmsave.py validate <fread> [<fsave>]
   fmsave.py upair [<airurl>]
   fmsave.py -h | --help
 
@@ -55,11 +56,13 @@ logging.config.dictConfig(config)
 APP_NAME = 'fmsave'
 logger = logging.getLogger(APP_NAME)
 
+
 def dl_html(fd, fm_un, max_pages, save_path):
     fm_pw = getpass.getpass(prompt="Flight Memory password:")
     fd.login(username=fm_un, password=fm_pw)
     fd.get_fm_pages(max_pages=max_pages)
     fd.save_fm_pages(save_path=save_path)
+
 
 def html_to_csv(fd, gn_un, read_path, fsave):
     fd.read_fm_pages(read_path=read_path)
@@ -67,6 +70,7 @@ def html_to_csv(fd, gn_un, read_path, fsave):
     fd.add_lat_lon()
     fd.add_timezones(gnusername=gn_un)
     fd.save_pandas_to_csv(save_fp=fsave)
+
 
 def update_csv(fdu, fde, read_path, fread, fsave, dbf, daf):
     # Get updated data html
@@ -87,10 +91,21 @@ def update_csv(fdu, fde, read_path, fread, fsave, dbf, daf):
     #  Save to csv
     fde.save_pandas_to_csv(save_fp=fsave)
 
+
 def update_tz(fd, gn_un, fread, fsave):
     fd.read_pandas_from_csv(read_fp=fread)
     fd.add_timezones(gnusername=gn_un)
     fd.save_pandas_to_csv(save_fp=fsave)
+
+
+def validate_dist_times(fd, fread, fsave):
+    fd.read_pandas_from_csv(read_fp=fread)
+    fd.validate_distance_times()
+    fd.save_pandas_to_csv(save_fp=fsave)
+    
+
+
+
 
 def date_to_dt(ddmmyyyy):
     if ddmmyyyy:
@@ -106,6 +121,7 @@ if __name__ == '__main__':
     upair = args['upair']
     upcsv = args['upcsv']
     uptz = args['uptz']
+    validate = args['validate']
     
     fread = args['<fread>']
     fsave = args['<fsave>']
@@ -152,3 +168,6 @@ if __name__ == '__main__':
 
     if uptz:
         update_tz(fd, gn_un, fread, fsave)
+    
+    if validate:
+        validate_dist_times(fd, fread, fsave)

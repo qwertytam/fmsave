@@ -5,16 +5,16 @@ import pandas as pd
 
 mpath = Path(__file__).parent.absolute()
 
-APP_NAME = 'airport'
+APP_NAME = 'data'
 _module_logger_name = f'{APP_NAME}.{__name__}'
 module_logger = logging.getLogger(_module_logger_name)
 module_logger.info(f"Module {_module_logger_name} logger initialized")
 
-AIRPORT_DATA_FILEPATH = mpath.parent / 'data/airports.csv'
+OURAIRPORTS_DATA_FILEPATH = mpath.parent / 'data/ourairports/airports.csv'
 
-def update_airport_data(
+def update_ourairport_data(
     url='https://davidmegginson.github.io/ourairports-data/airports.csv',
-    fp=AIRPORT_DATA_FILEPATH,
+    fp=OURAIRPORTS_DATA_FILEPATH,
     logger=module_logger):
     """
     Update airports data set, typically using OurAirports data
@@ -35,7 +35,7 @@ def update_airport_data(
     logger.debug("Completed update")
 
 
-def get_airport_data(airport_data_file=AIRPORT_DATA_FILEPATH,
+def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH,
                      logger=module_logger):
     """
     Get airports data from module data set

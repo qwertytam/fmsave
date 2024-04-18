@@ -20,7 +20,7 @@ import logging
 import yaml
 
 import logins
-import airport
+import data
 import utils
 import fmvalidate
 
@@ -606,7 +606,7 @@ class FMDownloader:
         """
         Add airport latitude and longitude information to pandas data frame
         """
-        airport_data = airport.get_airport_data()
+        airport_data = data.get_ourairport_data()
         airport_data = airport_data[
             ['ident',
              'name',

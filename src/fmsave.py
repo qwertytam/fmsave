@@ -33,7 +33,7 @@ Arguments:
 """
 
 import logins
-from airport import update_airport_data
+from data import update_ourairport_data
 from fmdownload import FMDownloader
 from datetime import datetime as dt
 from docopt import docopt
@@ -149,9 +149,9 @@ if __name__ == '__main__':
     if upair:
         airurl = args['<airurl>']
         if airurl is None:
-            update_airport_data(logger=logger)
+            update_ourairport_data(logger=logger)
         else:
-            update_airport_data(url=airurl, logger=logger)
+            update_ourairport_data(url=airurl, logger=logger)
 
     if upcsv:
         dbf = args['--before']

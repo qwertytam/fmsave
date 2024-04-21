@@ -17,7 +17,6 @@ from geonames import (GeoNamesDateReturnError, GeoNamesStopError)
 from geonames import EMPTY_TZ_DICT
 from datetime import datetime as dt
 import logging
-import yaml
 
 import logins
 import data
@@ -35,9 +34,7 @@ _module_logger_name = f'{APP_NAME}.{__name__}'
 module_logger = logging.getLogger(_module_logger_name)
 module_logger.info(f"Module {_module_logger_name} logger initialized")
 
-with open(mpath / 'data_dict.yaml','rt') as f:
-    data_dict = yaml.safe_load(f.read())
-    f.close()
+fm_data_dict = data.get_yaml('ourairports', 'airports')
 
 def _get_str_for_pd(page):
     sio = io.StringIO(page)
@@ -412,7 +409,7 @@ class FMDownloader:
 
 
     def _dates_to_dt(self):
-        time_cols = utils.get_parents_for_keys_with_value(data_dict, 'time')
+        time_cols = utils.get_parents_for_keys_with_value(fm_data_dict, 'time')
         self.logger.debug(
             f"\n{self.df.loc[0, ['date', 'time_dep', 'time_arr', 'date_offset']]}")
 
@@ -559,7 +556,7 @@ class FMDownloader:
         """
 
         values = ['ident', 'name', 'lat', 'lon', 'iso_country', 'municipality']
-        data_keys =  utils.get_parents_with_key_values(data_dict, 'data', values)
+        data_keys =  utils.get_parents_with_key_values(fm_data_dict, 'data', values)
 
         legs = ['dep', 'arr']
         leg_data = {}
@@ -567,7 +564,7 @@ class FMDownloader:
         for leg in legs:
             data_leg_keys = utils.find_keys_containing(data_keys, leg)
             leg_key = utils.get_parents_for_keys_with_all_values(
-                data_dict, ['iata', leg])[0]
+                fm_data_dict, ['iata', leg])[0]
             leg_data[leg_key] = data_leg_keys[leg]
         
         for leg in leg_data:
@@ -664,7 +661,7 @@ class FMDownloader:
         
         values = ['date', 'lat', 'lon', 'tzid', 'gmtoffset']
         data_keys =  utils.get_parents_with_key_values(
-            data_dict, 'data', values)
+            fm_data_dict, 'data', values)
 
         legs = ['dep', 'arr']
         leg_data = {}
@@ -729,7 +726,7 @@ class FMDownloader:
         # First get list of columns we're interested in using
         values = ['date', 'time', 'lat', 'lon', 'tzid', 'gmtoffset']
         data_keys =  utils.get_parents_with_key_values(
-            data_dict, 'data', values)
+            fm_data_dict, 'data', values)
         legs = ['dep', 'arr']
         time_date_cols = {}
         for leg in legs:
@@ -767,7 +764,7 @@ class FMDownloader:
 
         # Now get timezone columns
         tz_cols = utils.get_parents_list_with_key_values(
-            data_dict, 'data', ['tzid', 'gmtoffset'])
+            fm_data_dict, 'data', ['tzid', 'gmtoffset'])
 
         # See if we need to add columns
         new_cols = list(set(tz_cols).difference(self.df.columns))
@@ -805,9 +802,9 @@ class FMDownloader:
 
             self.logger.debug(f"row is:\n{row[tz_cols]}\n{row[tz_cols].dtypes}")
 
-            date_dt_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['dt', 'date'])
-            date_dep_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['dep', 'date'])
-            date_arr_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['arr', 'date'])
+            date_dt_cols = utils.get_parents_for_keys_with_all_values(fm_data_dict, ['dt', 'date'])
+            date_dep_cols = utils.get_parents_for_keys_with_all_values(fm_data_dict, ['dep', 'date'])
+            date_arr_cols = utils.get_parents_for_keys_with_all_values(fm_data_dict, ['arr', 'date'])
             date_cols = list(set(date_dt_cols) & (set(date_dep_cols) | set(date_arr_cols)))
 
             valid_date_pat = re.compile('\\d{4}-\\d{2}-\\d{2}')
@@ -873,11 +870,11 @@ class FMDownloader:
         fp = Path(read_fp)
         self.logger.info(f"Reading self.df from {fp}")
 
-        datetime_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['dt'])
-        timedelata_cols = utils.get_parents_for_keys_with_all_values(data_dict, ['td'])
+        datetime_cols = utils.get_parents_for_keys_with_all_values(fm_data_dict, ['dt'])
+        timedelata_cols = utils.get_parents_for_keys_with_all_values(fm_data_dict, ['td'])
                 
         col_types = utils.get_parents_with_key_values(
-            data_dict,
+            fm_data_dict,
             key='type',
             values=['float', 'str'])
         col_types = utils.replace_item(col_types, STR_TYPE_LU)
@@ -925,7 +922,7 @@ class FMDownloader:
         self.logger.debug(f"fd_updated has types:\n{fd_updated.df.dtypes}")
 
         on_cols = utils.get_parents_list_with_key_values(
-            data_dict,
+            fm_data_dict,
             key='update_merge_on',
             values=[True])
         
@@ -936,7 +933,7 @@ class FMDownloader:
         # Sometimes end up with mixed type cols, so reverting to str for those
         # that can be mixed
         to_str_cols = utils.get_parents_list_with_key_values(
-            data_dict, 'data', ['lon', 'lat'])
+            fm_data_dict, 'data', ['lon', 'lat'])
 
         self.df[to_str_cols] = self.df[to_str_cols].astype(str)
         fd_updated.df[to_str_cols] = fd_updated.df[to_str_cols].astype(str)

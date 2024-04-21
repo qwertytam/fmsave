@@ -2,8 +2,10 @@ from pathlib import Path
 import requests
 import logging
 import pandas as pd
+import yaml
 
 mpath = Path(__file__).parent.absolute()
+dpath = mpath.parent.absolute() / 'data'
 
 APP_NAME = 'data'
 _module_logger_name = f'{APP_NAME}.{__name__}'
@@ -17,6 +19,21 @@ OPENFLIGHTS_DATA_URL_BASE = 'https://raw.githubusercontent.com/jpatokal/openflig
 OPENFLIGHTS_DATA_FP_BASE = mpath.parent / 'data/openflights/'
 OPENFLIGHTS_DATA_SETS = ['airports', 'airlines', 'planes']
 OPENFLIGHTS_FILE_EXT = '.dat'
+
+
+def get_yaml(fp, fn):
+    """
+    Read in yaml
+    
+    Args:
+        fp: Path to yaml file relative to 'data' folder
+        fn: File name read in. Function will append '.yaml' extension
+    """
+    fn = fn + '.yaml'
+    with open(dpath / 'openflights' / fn,'rt') as f:
+        y = yaml.safe_load(f.read())
+        f.close()
+    return y
 
 
 def _write_data(fp, data, logger=module_logger):

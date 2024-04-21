@@ -1,0 +1,47 @@
+version: 1
+
+airports:
+    columns:
+        id:
+            type: int
+
+        name:
+            type: str
+
+        municipality:
+            type: str
+
+        country:
+            type: str
+
+        iata:
+            type: str
+
+        icao:
+            type: str
+
+        latitude:
+            type: float
+
+        longitude:
+            type: float
+
+        altitude:
+            type: int
+            units: feet
+
+        gmtoffset:
+            type: float
+            units: hours
+
+        dst_zone:
+            type: str
+
+        tz_db:
+            type: str
+
+        type:
+            type: str
+
+        source:
+            type: str

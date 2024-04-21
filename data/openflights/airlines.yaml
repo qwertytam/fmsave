@@ -1,0 +1,27 @@
+version: 1
+
+airlines:
+    columns:
+        id:
+            type: int
+
+        name:
+            type: str
+
+        alias:
+            type: str
+
+        iata:
+            type: str
+
+        icao:
+            type: str
+
+        callsign:
+            type: str
+
+        country:
+            type: str
+
+        active:
+            type: str

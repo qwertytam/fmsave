@@ -63,6 +63,32 @@ def list_depth(l, n=0):
         return 0
 
 
+def get_data_dict_column_names(data_dict, top_level_parent):
+    """
+    Gets names of keys under the keys `top_level_parent`: `columns`:
+    
+    For example:
+    ```
+    airports:
+        columns:
+            name:
+                detail1:
+                detail2:
+            id:
+                detail1:
+                detail2:
+    ```
+    It will return ['name', 'id']
+    
+    Args:
+        data_dict: Data dictionary to get column names from
+        top_level_parent: Name of top level parent
+    
+    Returns:
+        List of column names
+    """
+    return [k for k in data_dict[top_level_parent]['columns']]
+
 def get_bottom_lists(l, max_depth = 1):
     """
     Get bottom most list(s) in a nested list

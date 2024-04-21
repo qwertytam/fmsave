@@ -1,0 +1,12 @@
+version: 1
+
+planes:
+    columns:
+        name:
+            type: str
+
+        iata:
+            type: str
+
+        icao:
+            type: str

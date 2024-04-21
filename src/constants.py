@@ -10,6 +10,7 @@ DT_INFO_Y = "Y"
 STR_TYPE_LU = {
     'str': str,
     'float': float,
+    'int': int,
     'dt': dt,
     'td': td,
 }

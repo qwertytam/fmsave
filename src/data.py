@@ -19,6 +19,14 @@ OPENFLIGHTS_DATA_SETS = ['airports', 'airlines', 'planes']
 OPENFLIGHTS_FILE_EXT = '.dat'
 
 
+def _write_data(fp, data, logger=module_logger):
+    fp = Path(fp).resolve()
+    with open(fp, mode='wb') as f:
+        f.write(data)
+    
+    return fp
+
+
 def update_ourairport_data(
     url='https://davidmegginson.github.io/ourairports-data/airports.csv',
     fp=OURAIRPORTS_DATA_FILEPATH,
@@ -35,10 +43,7 @@ def update_ourairport_data(
     query_parameters = {'downloadformat': 'csv'}
     response = requests.get(url, params=query_parameters)
     
-    fp = Path(fp).resolve()
-    with open(fp, mode='wb') as f:
-        f.write(response.content)
-    
+    _ = _write_data(fp, response.content, logger)
     logger.debug("Completed update")
 
 
@@ -57,11 +62,53 @@ def update_openflights_data(logger=module_logger):
         response = requests.get(url, params=query_parameters)
         
         fn = data_set + OPENFLIGHTS_FILE_EXT
-        fp = Path(OPENFLIGHTS_DATA_FP_BASE / fn).resolve()
-        with open(fp, mode='wb') as f:
-            f.write(response.content)
+        fp = _write_data(OPENFLIGHTS_DATA_FP_BASE / fn, response.content, logger)
         logger.debug(f"Completed url:{url} file:{fp}")
     logger.info("Completed update")
+
+
+def _get_data(
+    filepath,
+    header_row='infer',
+    names=None,
+    dtype=None,
+    index_col=None,
+    na_values=None,
+    logger=module_logger):
+
+    filepath = Path(filepath).resolve()
+    
+    return pd.read_csv(filepath,
+                       header=header_row,
+                       names=names,
+                       dtype=dtype,
+                       index_col=index_col,
+                       na_values=na_values,
+                       encoding='utf-8')
+
+
+def get_openflights_data(
+    data_set=OPENFLIGHTS_DATA_SETS[0],
+    header_row=None,
+    cnames=None,
+    dtypes=None,
+    logger=module_logger):
+    """
+    Get open flights data from module data set
+
+    Args:
+        data_set: which data set to get e.g., airports, airlines, planes
+        logger: logger to use
+    """
+    fn = data_set + OPENFLIGHTS_FILE_EXT
+    fp = OPENFLIGHTS_DATA_FP_BASE / fn
+    return _get_data(fp,
+                     header_row=header_row,
+                     names=cnames,
+                     dtype=dtypes,
+                     index_col=False,
+                     na_values="\\N",
+                     logger=logger)
 
 
 def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH,
@@ -74,5 +121,4 @@ def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH,
         required information. Typically using openflights information
         logger: logger to use
     """
-    fp = Path(airport_data_file).resolve()
-    return pd.read_csv(fp)
+    return _get_data(airport_data_file, logger=logger)

@@ -1,0 +1,104 @@
+version: 1
+
+data_source: openflights
+    url: https://openflights.org/help/csv.php
+    encoding: utf-8
+    seperator: \,
+    newrow: \r\n
+    headerrow: True
+
+openflights:
+    columns:
+        date:
+            type: str
+            format: YYYY-MM-DD HH:MM
+            mandatory: True
+            notes: "Only date part is mandatory"
+
+        From:
+            type: str
+            mandatory: True
+            notes: "IATA or ICAO; mandatory unless `From_OID` is provided"
+
+        From:
+            type: str
+            mandatory: True
+            notes: "IATA or ICAO; mandatory unless `To_OID` is provided"
+
+        Flight_Number:
+            type: str
+            mandatory: False
+            notes: "If first two characters are an airline code, the code is used to override `Airline`"
+
+        Airline:
+            type: str
+            mandatory: False
+            notes: "Full name; airline codes not recognized; defaults to Unknown"
+
+        Distance:
+            type: int
+            mandatory: False
+            unit: miles
+            notes: "Calculated if not provided"
+
+        Duration:
+            type: str
+            mandatory: False
+            format: HH:MM
+            notes: "Estimated if not provided"
+
+        Seat:
+            type: str
+            mandatory: False
+
+        Seat_Type:
+            type: str
+            mandatory: False
+            notes: "One of `W`, `A`, `M` for window, ailse or middle"
+
+        Class:
+            type: str
+            mandatory: False
+            notes: "One of `F`, `C`, `P`, `Y` for first, business, premium economy or economy"
+
+        Reasons:
+            type: str
+            mandatory: False
+            notes: "One of `B`, `L`, `C`, `O` for business, personal, crew or other"
+
+        Plane:
+            type: str
+            mandatory: False
+
+        Registration:
+            type: str
+            mandatory: False
+
+        Trip:
+            type: str
+            mandatory: False
+            notes: "Internal OpenFlights Trip ID. Option, but must exist and belong to the user if specified"
+
+        Note:
+            type: str
+            mandatory: False
+
+        From_OID:
+            type: str
+            mandatory: False
+            notes: "Override `From` if provided"
+
+        To_OID:
+            type: str
+            mandatory: False
+            notes: "Overrides `To` if provided"
+
+        Airline_OID:
+            type: str
+            mandatory: False
+            notes: "Overrides `Airline` if provided"
+
+        Plane_OID:
+            type: str
+            mandatory: False
+            notes: "Overrides `Plane` if provided"

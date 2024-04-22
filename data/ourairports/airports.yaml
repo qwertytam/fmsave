@@ -1,230 +1,65 @@
 version: 1
-    data_source: ourairports
 
-flight_data:
+data_source: ourairports
+    url: https://ourairports.com/help/data-dictionary.html
+    encoding: utf-8
+    seperator: \,
+    newrow: \r\n
+    headerrow: False
+
+airports:
     columns:
-        flight_index:
-            type: str
-
-        date:
-            type: str
-            data: date
-            update_merge_on: True
-
-        date_as_dt:
-            type: dt
-            data: date
-            update_merge_on: True
-
-        dt_info:
-            type: str
-            update_merge_on: True
-
-        iata_dep:
-            type: str
-            point: dep
-            data: iata
-            update_merge_on: True
-
-        ident_dep:
-            type: str
-            point: dep
-            data: ident
-            update_merge_on: True
-
-        date_str_dep:
-            type: dt
-            point: dep
-            data: date
-            use_for_tz_lu: True
-
-        time_dep:
-            type: dt
-            point: dep
-            data: time
-            update_merge_on: True
-
-        tzid_dep:
-            type: str
-            point: dep
-            data: tzid
-
-        gmtoffset_dep:
-            type: float
-            point: dep
-            data: gmtoffset
-
-        name_dep:
-            type: str
-            point: dep
-            data: name
-            update_merge_on: True
-
-        lat_dep:
-            type: float
-            point: dep
-            data: lat
-            update_merge_on: True
-            use_for_tz_lu: True
-
-        lon_dep:
-            type: float
-            point: dep
-            data: lon
-            update_merge_on: True
-            use_for_tz_lu: True
-
-        city_county_name_dep:
-            type: str
-            point: dep
-            update_merge_on: True
-
-        iso_country_dep:
-            type: str
-            point: dep
-            data: iso_country
-            update_merge_on: True
-
-        municipality_dep:
-            type: str
-            point: dep
-            data: municipality
-            update_merge_on: True
-
-        iata_arr:
-            type: str
-            point: arr
-            data: iata
-            update_merge_on: True
-
-        ident_arr:
-            type: str
-            point: arr
-            data: ident
-            update_merge_on: True
-
-        date_str_arr:
-            type: dt
-            point: arr
-            data: date
-            use_for_tz_lu: True
-
-        time_arr:
-            type: dt
-            point: arr
-            data: time
-            update_merge_on: True
-
-        tzid_arr:
-            type: str
-            point: arr
-            data: tzid
-
-        gmtoffset_arr:
-            type: float
-            point: arr
-            data: gmtoffset
-
-        name_arr:
-            type: str
-            point: arr
-            data: name
-            update_merge_on: True
-
-        lat_arr:
-            type: float
-            point: arr
-            data: lat
-            update_merge_on: True
-            use_for_tz_lu: True
-
-        lon_arr:
-            type: float
-            point: arr
-            data: lon
-            update_merge_on: True
-            use_for_tz_lu: True
-
-        city_county_name_arr:
-            type: str
-            point: arr
-            update_merge_on: True
-
-        iso_country_arr:
-            type: str
-            point: arr
-            data: iso_country
-            update_merge_on: True
-
-        municipality_arr:
-            type: str
-            point: arr
-            data: municipality
-            update_merge_on: True
-
-        dist:
+        id:
             type: int
-            update_merge_on: True
 
-        dist_units:
+        ident:
             type: str
-            update_merge_on: True
-
-        duration:
-            type: td
-            update_merge_on: True
-
-        airline:
+        
+        type:
             type: str
-            update_merge_on: True
 
-        flightnum:
+        name:
             type: str
-            update_merge_on: True
 
-        airplane_type:
+        latitude_deg:
+            type: float
+
+        longitude_deg:
+            type: float
+
+        elevation:
+            type: int
+            units: feet
+
+        continent:
             type: str
-            update_merge_on: True
 
-        airplane_reg:
+        iso_country:
             type: str
-            update_merge_on: True
 
-        airplane_name:
+        iso_region:
             type: str
-            update_merge_on: True
 
-        seat:
+        municipality:
             type: str
-            update_merge_on: True
 
-        position:
+        scheduled_service:
             type: str
-            update_merge_on: True
 
-        class:
+        gps_code:
             type: str
-            update_merge_on: True
 
-        reason:
+        iata_code:
+            type: float
+
+        local_code:
             type: str
-            update_merge_on: True
 
-        role:
+        home_link:
             type: str
-            update_merge_on: True
 
-        comments:
-            type: bool
-            update_merge_on: True
-
-        comment:
+        wikipedia_link:
             type: str
-            update_merge_on: True
 
-        detail_url:
+        keywords:
             type: str
-            update_merge_on: True
-
-        ts:
-            type: dt

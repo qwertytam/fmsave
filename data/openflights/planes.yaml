@@ -1,5 +1,11 @@
 version: 1
-    data_source: openflights
+
+data_source: openflights
+    url: https://openflights.org/data
+    encoding: utf-8
+    seperator: \,
+    newrow: \r\n
+    headerrow: False
 
 planes:
     columns:

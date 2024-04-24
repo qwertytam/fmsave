@@ -1,6 +1,6 @@
-version: 1
-
-data_source: author
+document:
+    version: 1
+    data_source: author
     encoding: utf-8
     seperator: \,
     newrow: \r\n

@@ -1,6 +1,6 @@
-version: 1
-
-data_source: ourairports
+document:
+    version: 1
+    data_source: ourairports
     url: https://ourairports.com/help/data-dictionary.html
     encoding: utf-8
     seperator: \,

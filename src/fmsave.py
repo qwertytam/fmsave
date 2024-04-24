@@ -7,6 +7,7 @@ Usage:
   fmsave.py validate <fread> [<fsave>]
   fmsave.py upair [<airurl>]
   fmsave.py upof
+  fmsave.py export <exp_format> <fread> [<fsave>]
   fmsave.py -h | --help
 
 Options:
@@ -17,21 +18,23 @@ Options:
 
 Commands:
   dlhtml    Download html pages
+  export    Export data to given format
   tocsv     Convert html pages into a csv file
   upair     Update airport info data file
-  upof      Update openflights data files
   upcsv     Update existing csv file based on downloaded html pages
+  upof      Update openflights data files
   uptz      Update timezone information in existing csv file
 
 Arguments:
   airurl        URL to download airport info from
   chrome_path   Path to Chrome executable
+  exp_format    Format to export to; one of ['openflights', ]
   fm_un         Flight Memory username
-  fread         Path to and file name of csv file to read from; overwritten is fsave not provided
-  fsave         Path to and file name of csv file to save to
+  fread         Path to and file name of csv file to read from
+  fsave         Path to and file name of csv file to save to; if not provided, then uses <fread>
   gn_un         Geonames username
-  read_path     Directory to read html files from
-  save_path     Directory to save html files to
+  read_path     Directory to read file(s) from
+  save_path     Directory to save file(s) to
 """
 
 import logins
@@ -64,6 +67,11 @@ def dl_html(fd, max_pages, save_path):
     fd.login()
     fd.get_fm_pages(max_pages=max_pages)
     fd.save_fm_pages(save_path=save_path)
+
+
+def export_to(fd, exp_format, fread, fsave):
+    fd.read_pandas_from_csv(read_fp=fread)
+    fd.export_to(exp_format, fsave)
 
 
 def html_to_csv(fd, gn_un, read_path, fsave):
@@ -116,10 +124,11 @@ if __name__ == '__main__':
     args = docopt(__doc__)
 
     dlhtml = args['dlhtml']
+    export = args['export']
     tocsv = args['tocsv']
     upair = args['upair']
-    upof = args['upof']
     upcsv = args['upcsv']
+    upof = args['upof']
     uptz = args['uptz']
     validate = args['validate']
     
@@ -146,6 +155,12 @@ if __name__ == '__main__':
 
         dl_html(fd, max_pages, save_path)
 
+    if export:
+        exp_format = args['<exp_format>']
+        if fsave is None:
+            fsave = fread
+        export_to(fd, exp_format, fread, fsave)
+
     if tocsv:
         html_to_csv(fd, gn_un, read_path, fsave)
 
@@ -156,9 +171,6 @@ if __name__ == '__main__':
         else:
             update_ourairport_data(url=airurl, logger=logger)
 
-    if upof:
-        update_openflights_data(logger=logger)
-
     if upcsv:
         dbf = args['--before']
         daf = args['--after']
@@ -168,6 +180,9 @@ if __name__ == '__main__':
 
         fdd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
         update_csv(fd, fdd, read_path, fread, fsave, dbf, daf)
+
+    if upof:
+        update_openflights_data(logger=logger)
 
     if uptz:
         update_tz(fd, gn_un, fread, fsave)

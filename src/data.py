@@ -21,7 +21,7 @@ OPENFLIGHTS_DATA_SETS = ['airports', 'airlines', 'planes']
 OPENFLIGHTS_FILE_EXT = '.dat'
 
 
-def get_yaml(fp, fn):
+def get_yaml(fp, fn, logger=module_logger):
     """
     Read in yaml
     
@@ -30,7 +30,8 @@ def get_yaml(fp, fn):
         fn: File name read in. Function will append '.yaml' extension
     """
     fn = fn + '.yaml'
-    with open(dpath / 'openflights' / fn,'rt') as f:
+    logger.info(f"Getting yaml file: {dpath / fp / fn}")
+    with open(dpath / fp / fn,'rt') as f:
         y = yaml.safe_load(f.read())
         f.close()
     return y

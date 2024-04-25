@@ -14,6 +14,7 @@ airports:
 
         ident:
             type: str
+            notes: "The text identifier used in the OurAirports URL. This will be the ICAO code if available. Otherwise, it will be a local airport code (if no conflict), or if nothing else is available, an internally-generated code starting with the ISO2 country code, followed by a dash and a four-digit number."
         
         type:
             type: str

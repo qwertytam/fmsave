@@ -1,8 +1,11 @@
 from pathlib import Path
 import requests
 import logging
+from thefuzz import process
 import pandas as pd
 import yaml
+
+import utils
 
 mpath = Path(__file__).parent.absolute()
 dpath = mpath.parent.absolute() / 'data'
@@ -140,3 +143,40 @@ def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH,
         logger: logger to use
     """
     return _get_data(airport_data_file, logger=logger)
+
+
+def select_fuzzy_match(df, find_str, find_col, display_cols, col_widths, limit=10, logger=module_logger):
+    """
+    Find and select fuzzy match
+    
+    Uses fuzzy logic to find the closest matches, then asks user which match to
+    use
+
+    Args:
+        df: Data frame to find and select match from
+        find_str: String to find closest match in df
+        find_col: Which column in the data frame to find the match
+        display_cols: Which columns to display when asking the user to select a match
+        limit: How many closest matches to find and display
+        logger: Logger to use
+    
+    Return:
+        Row in df the user selected; `None` if the user selects none
+    """
+    res = process.extract(find_str, df[find_col], limit=limit)
+    res = pd.DataFrame([(x[0], x[1]) for x in res], columns=['match', 'score'])
+    res = pd.merge(res, df[display_cols], left_on='match', right_on=find_col)
+
+    logger.info(f"\nChoose match for '{find_str}':")
+    utils.print_selection_table(res, display_cols, col_widths)
+    sel = input("Which number or 'N' for none:")
+    logger.debug(f"User entered `{sel}`")
+
+    if sel.lower() == 'n':
+        logger.debug("Keeping current data\n")
+        sel_row = None
+    else:
+        sel_row = df[df[find_col] == res.loc[int(sel)-1, 'match']]
+        logger.debug(f"Chosen\n{sel_row}\n")
+
+    return sel_row

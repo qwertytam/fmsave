@@ -85,8 +85,8 @@ def html_to_csv(fd, gn_un, read_path, fsave):
 def update_csv(fdu, fde, read_path, fread, fsave, dbf, daf):
     # Get updated data html
     fdu.read_fm_pages(read_path=read_path)
-    fdu.fm_pages_to_pandas()
-    fdu.add_lat_lon()
+    fdu.fm_pages_to_pandas(dbf, daf)
+    fdu.add_lat_lon(dbf, daf)
     
     # Get existing data from csv
     fde.read_pandas_from_csv(read_fp=fread)

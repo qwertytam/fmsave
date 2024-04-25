@@ -9,7 +9,7 @@ document:
 airports:
     columns:
         flight_index:
-            type: str
+            type: int
 
         date:
             type: str
@@ -29,12 +29,6 @@ airports:
             type: str
             point: dep
             data: iata
-            update_merge_on: True
-
-        ident_dep:
-            type: str
-            point: dep
-            data: ident
             update_merge_on: True
 
         date_str_dep:
@@ -100,12 +94,6 @@ airports:
             type: str
             point: arr
             data: iata
-            update_merge_on: True
-
-        ident_arr:
-            type: str
-            point: arr
-            data: ident
             update_merge_on: True
 
         date_str_arr:
@@ -229,6 +217,16 @@ airports:
 
         detail_url:
             type: str
+            update_merge_on: True
+
+        ourairports_id_dep:
+            type: int
+            data: ourairports_id
+            update_merge_on: True
+
+        ourairports_id_arr:
+            type: int
+            data: ourairports_id
             update_merge_on: True
 
         ts:

@@ -447,7 +447,7 @@ class FMDownloader:
             .str.contains(pat=pat, regex=True)
 
 
-    def get_comments(self):
+    def get_comments(self, filter_rows=True):
         if not self.logged_in:
             self.logger.info("Found comments to download; need to login to flightmemory.com")
             if self.fm_un is None: self.fm_un = logins.get_fm_un()
@@ -455,8 +455,7 @@ class FMDownloader:
             self.login()
         
         loop_counter = 0
-        self.df['comment'] = ''
-        urls = self.df.loc[self.df['comments'], 'detail_url']
+        urls = self.df.loc[self.df[filter_rows & self.df['comments']].index, 'detail_url']
         self.logger.debug(f"Have {len(urls)} urls to get")
         utils.percent_complete(loop_counter, len(urls))
         for url in urls:
@@ -479,9 +478,27 @@ class FMDownloader:
         
         return links
 
-    def fm_pages_to_pandas(self):
+
+    def _get_date_filter(self, dates_before, dates_after):
+        date_filter = pd.Series(data=[True]*len(self.df.index), dtype='boolean')
+        if dates_before:
+            date_filter = self.df['date_as_dt'] <= dates_before
+
+        if dates_after:
+            date_filter = (self.df['date_as_dt'] >= dates_after) * date_filter
+
+        return date_filter
+
+    def fm_pages_to_pandas(self, dates_before=None, dates_after=None):
         """
         Convert Flight Memory web pages to pandas data frame
+        
+        Once dates are determined, only update comments for flights that match
+        the date criteria
+        
+        Args:
+            dates_before: Only get comments for flights before this date; as datetime
+            dates_after: Only get comments for flights before this date; as datetime
         """
         for idx, page in enumerate(self.pages):
             self.logger.debug(f"Reading page {idx+1} to self.df")
@@ -523,9 +540,13 @@ class FMDownloader:
         self._duration_to_td()
         self._comments_detailurl()
         
-        self.logger.info(f"we have {self.df['comments'].sum()} notes")
-        if self.df['comments'].sum() > 0:
-            self.get_comments()
+        date_filter = self._get_date_filter(dates_before, dates_after)
+        comments = self.df.loc[date_filter, 'comments']
+        self.df['comment'] = ''
+        self.logger.info(f"We have {comments.sum()} notes")
+        if comments.sum() > 0:
+            self.logger.info("\n\n!!!!!!~~~~~~~~~~~~~SKIPPING COMMENTS~~~~~~~~~~~~~!!!!!!\n")
+            self.get_comments(date_filter)
 
         self.df.drop(['date_dept_arr_offset',
                       'dist_duration',
@@ -599,13 +620,70 @@ class FMDownloader:
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
 
 
-    def add_lat_lon(self):
+    def _fuzzy_match_airports(self, airport_data, row_filter):
+        row_filter = row_filter & (self.df['lat_dep'].isna() | self.df['lat_arr'].isna())
+        mismatch_rows = self.df.loc[row_filter, :]
+        self.logger.debug(f"There are {len(mismatch_rows)} mismatches")
+        
+        df = airport_data
+        df = df.rename(columns={'iata_code': 'iata'})
+        
+        display_cols = [
+            'iata',
+            'name',
+            'iso_country',
+            'municipality',
+            'keywords',
+            ]
+
+        col_widths = [
+            4,
+            40,
+            11,
+            25,
+            40,
+        ]
+
+        update_cols = [
+            'ourairports_id',
+            'iata',
+            'name',
+            'lat',
+            'lon',
+            'iso_country',
+            'municipality',
+            ]
+
+        for mmidx, mm in mismatch_rows.iterrows():
+            for leg in ['_dep', '_arr']:
+                if math.isnan(mm['lat' + leg]):
+                    find_str = mm['city_county_name' + leg]
+                    sel_row = data.select_fuzzy_match(
+                        df, find_str, 'name', display_cols,
+                        col_widths, logger=self.logger)
+                    
+                    if sel_row is None:
+                        continue
+                    else:
+                        for col in update_cols:
+                            self.df.loc[mmidx, col + leg] = sel_row[col].values[0]
+
+
+    def add_lat_lon(self, dates_before=None, dates_after=None):
         """
         Add airport latitude and longitude information to pandas data frame
+        
+        Only update comments for flights that match the date criteria
+        
+        Args:
+            dates_before: Only get comments for flights before this date; as datetime
+            dates_after: Only get comments for flights before this date; as datetime
         """
         airport_data = data.get_ourairport_data()
+
         airport_data = airport_data[
-            ['ident',
+            ['id',
+             'ident',
              'name',
              'latitude_deg',
              'longitude_deg',
@@ -615,19 +693,21 @@ class FMDownloader:
              'keywords']]
         
         airport_data = airport_data.rename(columns={
+            'id': 'ourairports_id',
             'latitude_deg': 'lat',
             'longitude_deg': 'lon',
         })
+        exc_cols = ~airport_data.columns.isin(['ident', 'keywords'])
 
         self.df = self.df.join(
-            airport_data.loc[:, airport_data.columns != 'keywords'].set_index('iata_code'),
+            airport_data.loc[:, exc_cols].set_index('iata_code'),
             how='left',
             on='iata_dep',
             lsuffix='_org',
             rsuffix='_dep')
 
         self.df = self.df.join(
-            airport_data.loc[:, airport_data.columns != 'keywords'].set_index('iata_code'),
+            airport_data.loc[:, exc_cols].set_index('iata_code'),
             how='left',
             on='iata_arr',
             lsuffix='_dep',
@@ -642,9 +722,11 @@ class FMDownloader:
 
         # If any of the latitude columns are na, then lets try using
         # keywords to match airport info
-        if self.df[['lat_dep', 'lat_arr']].isna().sum(1).sum(0):
-            self.logger.debug("Trying self._try_keyword_lat_lon(airport_data)")
-            self._try_keyword_lat_lon(airport_data)
+        date_filter = self._get_date_filter(dates_before, dates_after)
+        if self.df.loc[date_filter, ['lat_dep', 'lat_arr']].isna().sum(1).sum(0):
+            self.logger.debug("Trying fuzzy matching for airports")
+            self._fuzzy_match_airports(airport_data, date_filter)
+            # self._try_keyword_lat_lon(airport_data)
 
 
     def _return_empty_tz_dict(self, row):
@@ -918,9 +1000,6 @@ class FMDownloader:
 
 
     def insert_updated_rows(self, fd_updated):
-        self.logger.debug(f"self has types:\n{self.df.dtypes}")
-        self.logger.debug(f"fd_updated has types:\n{fd_updated.df.dtypes}")
-
         on_cols = utils.get_parents_list_with_key_values(
             self.fms_data_dict,
             key='update_merge_on',
@@ -933,12 +1012,15 @@ class FMDownloader:
         # Sometimes end up with mixed type cols, so reverting to str for those
         # that can be mixed
         to_str_cols = utils.get_parents_list_with_key_values(
-            self.fms_data_dict, 'data', ['lon', 'lat'])
+            self.fms_data_dict, 'data', ['lon', 'lat', 'ourairports_id'])
 
         self.df[to_str_cols] = self.df[to_str_cols].astype(str)
         fd_updated.df[to_str_cols] = fd_updated.df[to_str_cols].astype(str)
 
         exc_cols = ['flight_index']
+        self.logger.debug(f"self has types:\n{self.df.dtypes}")
+        self.logger.debug(f"fd_updated has types:\n{fd_updated.df.dtypes}")
+
         df_all = self.df.merge(
             fd_updated.df.loc[:, ~fd_updated.df.columns.isin(exc_cols)],
             on=on_cols,

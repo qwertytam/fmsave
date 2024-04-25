@@ -387,3 +387,18 @@ def percent_complete(step, total_steps, bar_width=60, title="", print_perc=True)
     # Output to terminal repetitively over the same line using '\r'.
     sys.stdout.write("\r" + disp)
     sys.stdout.flush()
+
+def print_selection_table(df, display_cols, col_widths):
+    # Header row
+    msg = f" #:"
+    for idx, col in enumerate(display_cols):
+            msg += f"  {col:<{col_widths[idx]}}"
+    print(msg)
+
+    # Selections
+    for idx, r in df.iterrows():
+        rprint = r.fillna('')
+        msg = ""
+        for cidx, col in enumerate(display_cols):
+            msg += f"  {str(rprint[col])[slice(0,col_widths[cidx],)]:<{col_widths[cidx]}}"
+        print(f"{idx+1:>2}:{msg}")

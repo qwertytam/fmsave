@@ -10,7 +10,6 @@ Usage:
   fmsave.py upwiki
   fmsave.py export <exp_format> <fread> [<fsave>]
   fmsave.py updatefm <fread>
-  fmsave.py test <fread> [<fsave> --before=DD-MM-YYYY --after=DD-MM-YYYY]
   fmsave.py -h | --help
 
 Options:
@@ -123,21 +122,14 @@ def validate_dist_times(fd, fread, fsave):
     fd.validate_distance_times()
     fd.save_pandas_to_csv(save_fp=fsave)
 
+
 def update_fm_data(fd, fread):
     fd.read_pandas_from_csv(read_fp=fread)
     fd.update_fm_data()
 
+
 def update_wiki():
     dl_aircraft_codes(logger)
-
-def test_fmsave(fd, fread, fsave, dbf, daf):
-    fd.read_pandas_from_csv(read_fp=fread)
-    fd.remove_rows_by_date(dbf, daf)
-    fd.save_pandas_to_csv(save_fp=fsave)
-
-    fd.read_pandas_from_csv(read_fp=fread)
-    fd.keep_rows_by_date(dbf, daf)
-    fd.save_pandas_to_csv(save_fp=(fsave + '_2.csv'))
     
 
 def date_to_dt(ddmmyyyy):
@@ -145,6 +137,7 @@ def date_to_dt(ddmmyyyy):
         ddmmyyyy = dt.strptime(ddmmyyyy, "%d-%m-%Y")
 
     return ddmmyyyy
+
 
 if __name__ == '__main__':
     args = docopt(__doc__)
@@ -231,15 +224,3 @@ if __name__ == '__main__':
     
     if upwiki:
         update_wiki()
-        
-    if test:
-        if fsave is None:
-            fsave = fread
-
-        dbf = args['--before']
-        daf = args['--after']
-        
-        dbf = date_to_dt(dbf)
-        daf = date_to_dt(daf)
-        
-        test_fmsave(fd, fread, fsave, dbf, daf)

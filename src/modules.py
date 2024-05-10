@@ -6,7 +6,6 @@ from geopy import distance as dist
 import getpass
 import io
 import logging
-import logging.config as logconfig
 import math
 import numpy as np
 import pandas as pd

@@ -52,6 +52,13 @@ def _get_str_for_pd(page):
     return flight_tbl
 
 
+def _check_count(current_run_status, count, limit):
+        error_flag = False # 
+        if count >= limit or error_flag:
+            return False
+        return current_run_status
+
+
 class FMDownloader:
 
     def __init__(
@@ -167,8 +174,10 @@ class FMDownloader:
             max_pages = num_pages_on_fm
 
         utils.percent_complete(loop_counter, max_pages)
-        while loop_counter < max_pages:
+        run = True
+        while run:
             loop_counter += 1
+            run = _check_count(run, loop_counter, max_pages)
             self.logger.debug(f"Getting page number: {loop_counter}")
             self._get_outer_html()
 

@@ -152,8 +152,7 @@ if __name__ == '__main__':
     updatefm = args['updatefm']
     validate = args['validate']
     upwiki = args['upwiki']
-    test = args['test']
-    
+
     fread = args['<fread>']
     fsave = args['<fsave>']
 

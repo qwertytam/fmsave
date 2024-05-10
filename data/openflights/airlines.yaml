@@ -9,26 +9,26 @@ document:
 
 airlines:
     columns:
-        id:
+        ID:
             type: int
 
-        name:
+        Name:
             type: str
 
-        alias:
+        Alias:
             type: str
 
-        iata:
+        IATA:
             type: str
 
-        icao:
+        ICAO:
             type: str
 
-        callsign:
+        Callsign:
             type: str
 
-        country:
+        Country:
             type: str
 
-        active:
+        Active:
             type: str

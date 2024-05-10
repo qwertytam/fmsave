@@ -7,6 +7,36 @@ DT_INFO_YMD = "YMD"
 DT_INFO_YM = "YM"
 DT_INFO_Y = "Y"
 
+DT_FMTS ={
+    DT_INFO_YMDT: {'fmt': '%Y-%m-%d %H:%M', 'srccol': 'time_dep'},
+    DT_INFO_YMDO: {'fmt': '%Y-%m-%d', 'srccol': 'date_as_dt'},
+    DT_INFO_YMD: {'fmt': '%Y-%m-%d', 'srccol': 'date_as_dt'},
+    DT_INFO_YM: {'fmt': '%Y-%m', 'srccol': 'date_as_dt'},
+    DT_INFO_Y: {'fmt': '%Y', 'srccol': 'date_as_dt'},
+}
+
+KM_TO_MILES = 1 / 1.6094
+
+CLASS_OPENFLIGHTS_LU = {
+    "First": "F",
+    "Business": "C",
+    "EconomyPlus": "P",
+    "Economy": "Y", 
+}
+
+SEAT_OPENFLIGHTS_LU = {
+    "Window": "W",
+    "Middle": "M",
+    "Aisle": "A",
+}
+
+REASON_OPENFLIGHTS_LU = {
+    "Business": "B",
+    "Personal": "L",
+    "Crew": "C",
+    "Other": "O",
+}
+
 STR_TYPE_LU = {
     'str': str,
     'float': float,

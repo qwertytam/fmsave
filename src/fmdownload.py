@@ -21,11 +21,14 @@ import logging
 import logins
 import data
 import utils
+import dataexport
 import fmvalidate
 
 from constants import DT_INFO_YMDT, DT_INFO_YMDO, DT_INFO_YMD, DT_INFO_YM, DT_INFO_Y
-from constants import STR_TYPE_LU
+from constants import STR_TYPE_LU, DT_FMTS, KM_TO_MILES
+from constants import CLASS_OPENFLIGHTS_LU, SEAT_OPENFLIGHTS_LU, REASON_OPENFLIGHTS_LU
 
+import fmplanelu
 
 mpath = Path(__file__).parent.absolute()
 
@@ -397,10 +400,69 @@ class FMDownloader:
              'airplane_name']] = str_split
 
 
+    def _add_airplane_types(self):
+        data_format = 'wiki'
+        data_set = 'aircraft'
+
+        match_col = 'airplane_type'
+        check_col = 'icao_type'
+
+        data_dict = data.get_yaml(data_format, data_set, self.logger)
+        col_names = utils.get_data_dict_column_names(data_dict, data_set)
+        col_types = utils.get_parents_with_key_values(
+            data_dict,
+            key='type',
+            values=['float', 'str'])
+        col_types = utils.replace_item(col_types, STR_TYPE_LU)
+        
+        wiki_data = data.get_wiki_data(data_set, names=col_names, dtype=col_types)
+
+        self.df[match_col] = self.df[match_col].fillna('')
+        self.df = data.fuzzy_merge(self.df, wiki_data, match_col, 'model_name', limit=1)
+
+        self.df = self.df.join(
+            wiki_data.set_index('model_name'),
+            how='left',
+            on='matches',)
+
+        self.df.drop(['matches'], axis=1, inplace=True)
+
+        row_filter = self.df[check_col].isna()
+        mismatch_values = sorted(self.df.loc[row_filter, match_col].unique())
+
+        display_cols = col_names
+
+        col_widths = [
+            9,
+            9,
+            50,
+        ]
+
+        for mmv in mismatch_values:
+            if mmv is None or len(mmv) == 0:
+                continue
+
+            find_str = str(mmv)
+            sel_row = data.select_fuzzy_match(
+                wiki_data,
+                find_str,
+                'model_name',
+                display_cols,
+                col_widths,
+                logger=self.logger,)
+            
+            if sel_row is None:
+                continue
+            else:
+                self.df.loc[self.df[match_col] == find_str, check_col] = sel_row[check_col].values[0]
+
+
     def _split_airline_col(self):
         pat = r'(\w{2}\d{1,4})$'
         self.df['flightnum'] = self.df['airline_flightnum']\
             .str.extract(pat, expand=True)
+
+        self.df['iata_airline'] = self.df['flightnum'].str.slice(0, 2)
         
         pat = r'(.+) ' + pat
         repl = r'\1'
@@ -447,25 +509,28 @@ class FMDownloader:
             .str.contains(pat=pat, regex=True)
 
 
-    def get_comments(self, filter_rows=True):
+    def get_comments(self, filter_col=None):
         if not self.logged_in:
             self.logger.info("Found comments to download; need to login to flightmemory.com")
             if self.fm_un is None: self.fm_un = logins.get_fm_un()
             if self.fm_pw is None: self.fm_pw = logins.get_fm_pw()
             self.login()
-        
+
         loop_counter = 0
-        urls = self.df.loc[self.df[filter_rows & self.df['comments']].index, 'detail_url']
-        self.logger.debug(f"Have {len(urls)} urls to get")
-        utils.percent_complete(loop_counter, len(urls))
+        filter_cols = [filter_col, 'comments'] if filter_col else ['comments']
+        urls = self.df.loc[self.df[filter_cols].all(axis=1), 'detail_url']
+        num_urls = len(urls)
+        self.logger.debug(f"Have {num_urls} urls to get")
+        utils.percent_complete(loop_counter, num_urls)
         for url in urls:
-            self.logger.debug(f"Getting: {url}")
+            self.logger.debug(f"Getting url {loop_counter + 1} out of {num_urls}: {url}")
             self.driver.get(url)
             comment = self.driver.find_element(By.NAME, 'kommentar').text
             self.df.loc[self.df['detail_url'] == url, 'comment'] = comment
             loop_counter += 1
-            utils.percent_complete(loop_counter, len(urls))
+            utils.percent_complete(loop_counter, num_urls)
         print("\n")
+        self.df['comment'] = self.df['comment'].str.replace(r'\n', '', regex=True)
 
     def links_from_options(self, table):
         BASE_URL = 'https://www.flightmemory.com/signin/'
@@ -480,14 +545,14 @@ class FMDownloader:
 
 
     def _get_date_filter(self, dates_before, dates_after):
-        date_filter = pd.Series(data=[True]*len(self.df.index), dtype='boolean')
+        # date_filter = pd.Series(data=[True]*len(self.df.index), dtype='boolean')
+        self.df['date_filter'] = True
         if dates_before:
-            date_filter = self.df['date_as_dt'] <= dates_before
+            self.df['date_filter'] = self.df['date_as_dt'] <= dates_before
 
         if dates_after:
-            date_filter = (self.df['date_as_dt'] >= dates_after) * date_filter
+            self.df['date_filter'] = (self.df['date_as_dt'] >= dates_after) & self.df['date_filter']
 
-        return date_filter
 
     def fm_pages_to_pandas(self, dates_before=None, dates_after=None):
         """
@@ -530,24 +595,26 @@ class FMDownloader:
             inplace=True,
             errors='raise',
             )
-
         self._split_date_col()
+        self._dates_to_dt()
+        self.keep_rows_by_date(dates_before, dates_after)
+
         self._split_dist_col()
         self._split_seat_col()
         self._split_airplane_col()
+        self._add_airplane_types()
         self._split_airline_col()
-        self._dates_to_dt()
         self._duration_to_td()
         self._comments_detailurl()
-        
-        date_filter = self._get_date_filter(dates_before, dates_after)
-        comments = self.df.loc[date_filter, 'comments']
+        self._get_date_filter(dates_before, dates_after)
+
+        comments = self.df.loc[self.df['date_filter'], 'comments']
         self.df['comment'] = ''
         self.logger.info(f"We have {comments.sum()} notes")
         if comments.sum() > 0:
-            self.logger.info("\n\n!!!!!!~~~~~~~~~~~~~SKIPPING COMMENTS~~~~~~~~~~~~~!!!!!!\n")
-            self.get_comments(date_filter)
+            self.get_comments('date_filter')
 
+        self.df.drop(columns=['date_filter'], inplace=True)
         self.df.drop(['date_dept_arr_offset',
                       'dist_duration',
                       'seat_class_place',
@@ -562,6 +629,7 @@ class FMDownloader:
 
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
         self.df['ts'] = dt.now()
+
 
     def _try_keyword_lat_lon(self, airport_data):
         """
@@ -620,8 +688,9 @@ class FMDownloader:
         self.df = self.df.replace(r'^\s*$', np.nan, regex=True)
 
 
-    def _fuzzy_match_airports(self, airport_data, row_filter):
-        row_filter = row_filter & (self.df['lat_dep'].isna() | self.df['lat_arr'].isna())
+    def _fuzzy_match_airports(self, airport_data, filter_col=None):
+        row_filter = self.df[['lat_dep', 'lat_arr']].isna().any(axis=1)
+        if filter_col: row_filter = row_filter & self.df[filter_col]
         mismatch_rows = self.df.loc[row_filter, :]
         self.logger.debug(f"There are {len(mismatch_rows)} mismatches")
         
@@ -630,6 +699,7 @@ class FMDownloader:
         
         display_cols = [
             'iata',
+            'icao',
             'name',
             'iso_country',
             'municipality',
@@ -638,15 +708,17 @@ class FMDownloader:
 
         col_widths = [
             4,
-            40,
+            7,
+            30,
             11,
-            25,
-            40,
+            15,
+            30,
         ]
 
         update_cols = [
             'ourairports_id',
             'iata',
+            'icao',
             'name',
             'lat',
             'lon',
@@ -694,10 +766,11 @@ class FMDownloader:
         
         airport_data = airport_data.rename(columns={
             'id': 'ourairports_id',
+            'ident': 'icao',
             'latitude_deg': 'lat',
             'longitude_deg': 'lon',
         })
-        exc_cols = ~airport_data.columns.isin(['ident', 'keywords'])
+        exc_cols = ~airport_data.columns.isin(['keywords'])
 
         self.df = self.df.join(
             airport_data.loc[:, exc_cols].set_index('iata_code'),
@@ -722,12 +795,13 @@ class FMDownloader:
 
         # If any of the latitude columns are na, then lets try using
         # keywords to match airport info
-        date_filter = self._get_date_filter(dates_before, dates_after)
-        if self.df.loc[date_filter, ['lat_dep', 'lat_arr']].isna().sum(1).sum(0):
-            self.logger.debug("Trying fuzzy matching for airports")
-            self._fuzzy_match_airports(airport_data, date_filter)
-            # self._try_keyword_lat_lon(airport_data)
+        self._get_date_filter(dates_before, dates_after)
 
+        if self.df.loc[self.df['date_filter'], ['lat_dep', 'lat_arr']].isna().any(axis=1).sum():
+            self.logger.debug("Trying fuzzy matching for airports")
+            self._fuzzy_match_airports(airport_data, 'date_filter')
+
+        self.df.drop(columns=['date_filter'], inplace=True)
 
     def _return_empty_tz_dict(self, row):
         tz = EMPTY_TZ_DICT
@@ -962,7 +1036,7 @@ class FMDownloader:
         col_types = utils.replace_item(col_types, STR_TYPE_LU)
                 
         self.df = pd.read_csv(fp, dtype=col_types)
-        
+
         for col in datetime_cols:
             self.df[col] = pd.to_datetime(
                 self.df[col], format='ISO8601', yearfirst=True)
@@ -974,29 +1048,50 @@ class FMDownloader:
         self.logger.debug(f"Have read in csv; df types:\n{self.df.dtypes}")
 
 
-    def remove_rows(self, dbf, daf):
+    def remove_rows_by_date(self, dbf=dt(2100, 12, 31), daf=dt(1900, 1, 1)):
+        """
+        Remove rows in self.df based on dates in column 'date_as_dt'
         
-        if dbf and daf:
-            self.logger.info("Removing rows between dates "
-                             f"dbf: {dbf} daf: {daf}")
-            rdrop = self.df[
-                (self.df['date_as_dt'] >= daf) & (self.df['date_as_dt'] <= dbf)].index
-        elif dbf:
-            self.logger.info("Removing dates before "
-                             f"dbf: {dbf}")
-            rdrop = self.df[(self.df['date_as_dt'] <= dbf)].index
-        elif daf:
-            self.logger.info("Removing dates after "
-                             f" daf: {daf}")
-            rdrop = self.df[(self.df['date_as_dt'] >= daf)].index
-        else:
-            self.logger.info("No valid date ranges to remove "
-                             f"dbf: {dbf} daf: {daf}")
-            rdrop = None
+        Args:
+            dbf: Remove rows that are on and before this date i.e., <= dbf
+            daf: Remove rows that are on and after this date i.e., <= daf
+        """
+        if dbf is None:
+            dbf = dt(2100, 12, 31)
 
-        if rdrop is not None:
-            self.logger.info(f"Removing {len(rdrop)} rows")
-            self.df = self.df.drop(rdrop)
+        if daf is None:
+            daf = dt(1900, 1, 1)
+
+        self.logger.debug(f"Removing rows between dates {dbf} and {daf}")
+        rdrop = self.df[
+                (self.df['date_as_dt'] >= daf) & \
+                    (self.df['date_as_dt'] <= dbf)].index
+
+        self.logger.debug(f"Removing {len(rdrop)} rows")
+        self.df = self.df.drop(rdrop)
+
+
+    def keep_rows_by_date(self, dbf=dt(2100, 12, 31), daf=dt(1900, 1, 1)):
+        """
+        Keep rows in self.df based on dates in column 'date_as_dt'
+        
+        Args:
+            dbf: Keep rows that are on and before this date i.e., <= dbf
+            daf: Keep rows that are on and after this date i.e., <= daf
+        """
+        if dbf is None:
+            dbf = dt(2100, 12, 31)
+
+        if daf is None:
+            daf = dt(1900, 1, 1)
+
+        self.logger.debug(f"Keeping rows between dates {dbf} and {daf}")
+        rkeep = self.df[
+                (self.df['date_as_dt'] >= daf) & \
+                    (self.df['date_as_dt'] <= dbf)].index
+
+        self.logger.debug(f"Keeping {len(rkeep)} rows")
+        self.df = self.df.iloc[rkeep, :]
 
 
     def insert_updated_rows(self, fd_updated):
@@ -1018,9 +1113,12 @@ class FMDownloader:
         fd_updated.df[to_str_cols] = fd_updated.df[to_str_cols].astype(str)
 
         exc_cols = ['flight_index']
+        self_dyptes = set(self.df.columns.to_list())
         self.logger.debug(f"self has types:\n{self.df.dtypes}")
+        
+        fd_updated_dtypes = fd_updated.df.columns.to_list()
         self.logger.debug(f"fd_updated has types:\n{fd_updated.df.dtypes}")
-
+        
         df_all = self.df.merge(
             fd_updated.df.loc[:, ~fd_updated.df.columns.isin(exc_cols)],
             on=on_cols,
@@ -1034,20 +1132,13 @@ class FMDownloader:
             inplace=True,
             errors='raise',
             )
-
         sort_cols = ['date', 'time_dep', 'time_arr']
+
         self.df = df_all.sort_values(by=sort_cols)
         self.df['flight_index'] = range(1, len(self.df.index) + 1)
-        
+
         self.logger.debug(f"Have inserted new data; now have:\n{self.df.dtypes}")
                 
-        # Need to replace empty str with np.nan
-        # non_str_cols = ['lat_dep',
-        #                 'lon_dep',
-        #                 'lat_arr',
-        #                 'lon_arr',
-        #                 'gmtoffset_dep',
-        #                 'gmtoffset_arr',]
         non_str_cols = to_str_cols
         self.df[non_str_cols] = self.df[non_str_cols].replace(r'^\s*$', np.nan, regex=True)        
         self.df[non_str_cols] = self.df[non_str_cols].astype(float)
@@ -1063,15 +1154,98 @@ class FMDownloader:
         self.df['duration_validated'] = fmvalidate.calc_duration(self.df, 'time_dep', 'time_arr', 'gmtoffset_dep', 'gmtoffset_arr')
         self.df['dur_pct_err'] = (self.df['duration'] - self.df['duration_validated']) / self.df['duration'] * 100
         self.df['dur_pct_err'] = self.df['dist_pct_err'].abs()
-    
-    
+
+
+    def _export_to_openflights(self, fsave, exp_format='openflights'):
+        exp_format = 'openflights'
+        exp_df = dataexport.match_openflights_airports(self.df, self.logger)
+        exp_df = dataexport.match_openflights_airlines(exp_df, self.logger)
+
+        exp_data_dict = data.get_yaml(exp_format, exp_format, logger=self.logger)
+        col_renames = utils.get_parents_with_key_values(exp_data_dict, 'fmcol', [r'^.+$'], True)
+        col_renames = utils.swap_keys_values(col_renames)
+
+        for fmt in DT_FMTS.keys():
+            fmt_rows = exp_df['dt_info'] == fmt
+            dt_dmt = DT_FMTS[fmt]['fmt']
+            dt_col = DT_FMTS[fmt]['srccol']
+            exp_df.loc[fmt_rows, 'date_as_str'] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_dmt)
+
+        exp_cols = utils.get_keys(col_renames)
+        exp_cols = [x for x in exp_cols if x in set(exp_df.columns)]
+        exp_df = exp_df[exp_cols].rename(columns=col_renames)
+
+        exp_df['Duration'] = exp_df['Duration'].dt.to_pytimedelta().astype('str')
+        exp_df['Distance'] = exp_df['Distance'] * KM_TO_MILES
+        exp_df['Distance'] = exp_df['Distance'].astype('int64')
+        exp_df['Class'] = exp_df['Class'].replace(CLASS_OPENFLIGHTS_LU)
+        exp_df['Reason'] = exp_df['Reason'].replace(REASON_OPENFLIGHTS_LU)
+        exp_df['Seat_Type'] = exp_df['Seat_Type'].replace(SEAT_OPENFLIGHTS_LU)
+        
+        col_loc = exp_df.columns.get_loc('Registration') + 1
+        exp_df.insert(loc=col_loc, column='Trip', value='')
+
+        exp_df.to_csv(fsave, index=False, encoding='utf-8')
+        self.logger.info(f"Finished exporting with format `{exp_format}` to `{fsave}`")
+
+
     def export_to(self, exp_format, fsave):
         formats = ['openflights']
-        if any(exp_format in f for f in formats):
-            exp_format = 'openflights'
-        else:
+        if not any(exp_format in f for f in formats):
             msg = f"Unrecognized export format `{exp_format}`; terminating"
             raise ValueError(msg)
         
         self.logger.info(f"Continuing with exp format `{exp_format}`")
+        
+        if exp_format == 'openflights':
+            self._export_to_openflights(fsave)
 
+
+    def update_fm_data(self):
+        # For converting plane types
+        # lu_in_use = fmplanelu.FMPLANELU
+        # lu_col = 'airplane_type'
+        # fm_text_box_name = 'flugzeug'
+        
+        # For converting plane types based on registration
+        # lu_in_use = fmplanelu.FMREGTYPE
+        # lu_col = 'airplane_reg'
+        # fm_text_box_name = 'flugzeug'
+        
+        # For converting airline names
+        lu_in_use = fmplanelu.FMAIRLINENAMES
+        lu_col = 'airline'
+        fm_text_box_name = 'airline'
+        
+        if not self.logged_in:
+            self.logger.info("Need to login to flightmemory.com")
+            if self.fm_un is None: self.fm_un = logins.get_fm_un()
+            if self.fm_pw is None: self.fm_pw = logins.get_fm_pw()
+            self.login()
+        
+        outer_loop_counter = 0
+        
+        data_to_lu = self.df[lu_col].unique()
+        all_lu_keys = lu_in_use.keys()
+        total_loops = self.df[lu_col].isin(all_lu_keys).sum()
+        for lu in data_to_lu:
+            if lu is None or (lu_in_use.get(lu) is None):
+                continue
+            rows = self.df[lu_col] == lu
+            inner_loop_counter = 0
+
+            urls = self.df.loc[rows, 'detail_url']
+            num_urls = len(urls.index)
+            new_entry = lu_in_use[lu]
+
+            self.logger.info(f"Replacing `{lu}` with `{new_entry}`")
+            for url in urls:
+                self.driver.get(url)
+                input_type = self.driver.find_element(By.NAME, fm_text_box_name)
+                input_type.clear()
+                input_type.send_keys(new_entry)
+                input_type.submit()
+                outer_loop_counter += 1
+                inner_loop_counter += 1
+                self.logger.info(f"Completed {outer_loop_counter} out of {total_loops} total and replaced {inner_loop_counter} out of {num_urls} for {lu}")
+        print("\n")

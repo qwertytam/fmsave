@@ -9,46 +9,46 @@ document:
 
 airports:
     columns:
-        id:
+        ID:
             type: int
 
-        name:
+        Airport_Name:
             type: str
 
-        municipality:
+        City:
             type: str
 
-        country:
+        Country:
             type: str
 
-        iata:
+        IATA:
             type: str
 
-        icao:
+        ICAO:
             type: str
 
-        latitude:
+        Latitude:
             type: float
 
-        longitude:
+        Longitude:
             type: float
 
-        altitude:
+        Altitude:
             type: int
             units: feet
 
-        gmtoffset:
+        Timezone:
             type: float
             units: hours
 
-        dst_zone:
+        DST:
             type: str
 
-        tz_db:
+        Tz_database_timezone:
             type: str
 
-        type:
+        Type:
             type: str
 
-        source:
+        Source:
             type: str

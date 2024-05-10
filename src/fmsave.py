@@ -7,7 +7,10 @@ Usage:
   fmsave.py validate <fread> [<fsave>]
   fmsave.py upair [<airurl>]
   fmsave.py upof
+  fmsave.py upwiki
   fmsave.py export <exp_format> <fread> [<fsave>]
+  fmsave.py updatefm <fread>
+  fmsave.py test <fread> [<fsave> --before=DD-MM-YYYY --after=DD-MM-YYYY]
   fmsave.py -h | --help
 
 Options:
@@ -38,11 +41,11 @@ Arguments:
 """
 
 import logins
-from data import update_ourairport_data, update_openflights_data
+from data import update_ourairport_data, update_openflights_data, dl_aircraft_codes
 from fmdownload import FMDownloader
 from datetime import datetime as dt
 from docopt import docopt
-
+import utils
 from constants import DEFAULT_CHROME_PATH, CHROME_OPTIONS
 
 # Set up logging
@@ -86,17 +89,24 @@ def update_csv(fdu, fde, read_path, fread, fsave, dbf, daf):
     # Get updated data html
     fdu.read_fm_pages(read_path=read_path)
     fdu.fm_pages_to_pandas(dbf, daf)
+    # utils.index_diagnostics(fdu.df['flight_index'], "fmsave fdu 1", logger=logger)
+
     fdu.add_lat_lon(dbf, daf)
+    # utils.index_diagnostics(fdu.df['flight_index'], "fmsave fdu 2", logger=logger)
     
     # Get existing data from csv
     fde.read_pandas_from_csv(read_fp=fread)
+    # utils.index_diagnostics(fde.df['flight_index'], "fmsave fde 1", logger=logger)
     
     # Delete unwanted rows
-    fde.remove_rows(dbf, daf)
+    fde.remove_rows_by_date(dbf, daf)
+    utils.index_diagnostics(fde.df['flight_index'], "fmsave fde 2", logger=logger)
     
     # Insert new flights
     fde.insert_updated_rows(fdu)
+    utils.index_diagnostics(fde.df['flight_index'], "fmsave fde 3", logger=logger)
     fde.add_timezones(gnusername=gn_un)
+    utils.index_diagnostics(fde.df['flight_index'], "fmsave fde 4", logger=logger)
     
     #  Save to csv
     fde.save_pandas_to_csv(save_fp=fsave)
@@ -113,6 +123,22 @@ def validate_dist_times(fd, fread, fsave):
     fd.validate_distance_times()
     fd.save_pandas_to_csv(save_fp=fsave)
 
+def update_fm_data(fd, fread):
+    fd.read_pandas_from_csv(read_fp=fread)
+    fd.update_fm_data()
+
+def update_wiki():
+    dl_aircraft_codes(logger)
+
+def test_fmsave(fd, fread, fsave, dbf, daf):
+    fd.read_pandas_from_csv(read_fp=fread)
+    fd.remove_rows_by_date(dbf, daf)
+    fd.save_pandas_to_csv(save_fp=fsave)
+
+    fd.read_pandas_from_csv(read_fp=fread)
+    fd.keep_rows_by_date(dbf, daf)
+    fd.save_pandas_to_csv(save_fp=(fsave + '_2.csv'))
+    
 
 def date_to_dt(ddmmyyyy):
     if ddmmyyyy:
@@ -130,12 +156,13 @@ if __name__ == '__main__':
     upcsv = args['upcsv']
     upof = args['upof']
     uptz = args['uptz']
+    updatefm = args['updatefm']
     validate = args['validate']
+    upwiki = args['upwiki']
+    test = args['test']
     
     fread = args['<fread>']
     fsave = args['<fsave>']
-    if fsave is None:
-        fsave = fread
 
     gn_un = args['<gn_un>']
     read_path = args['<read_path>']
@@ -158,10 +185,12 @@ if __name__ == '__main__':
     if export:
         exp_format = args['<exp_format>']
         if fsave is None:
-            fsave = fread
+            fsave = 'openflights.csv'
         export_to(fd, exp_format, fread, fsave)
 
     if tocsv:
+        if fsave is None:
+            fsave = fread
         html_to_csv(fd, gn_un, read_path, fsave)
 
     if upair:
@@ -172,6 +201,9 @@ if __name__ == '__main__':
             update_ourairport_data(url=airurl, logger=logger)
 
     if upcsv:
+        if fsave is None:
+            fsave = fread
+
         dbf = args['--before']
         daf = args['--after']
         
@@ -185,7 +217,29 @@ if __name__ == '__main__':
         update_openflights_data(logger=logger)
 
     if uptz:
+        if fsave is None:
+            fsave = fread
         update_tz(fd, gn_un, fread, fsave)
     
     if validate:
+        if fsave is None:
+            fsave = fread
         validate_dist_times(fd, fread, fsave)
+    
+    if updatefm:
+        update_fm_data(fd, fread)
+    
+    if upwiki:
+        update_wiki()
+        
+    if test:
+        if fsave is None:
+            fsave = fread
+
+        dbf = args['--before']
+        daf = args['--after']
+        
+        dbf = date_to_dt(dbf)
+        daf = date_to_dt(daf)
+        
+        test_fmsave(fd, fread, fsave, dbf, daf)

@@ -31,6 +31,12 @@ airports:
             data: iata
             update_merge_on: True
 
+        icao_dep:
+            type: str
+            point: dep
+            data: icao
+            update_merge_on: True
+
         date_str_dep:
             type: dt
             point: dep
@@ -94,6 +100,12 @@ airports:
             type: str
             point: arr
             data: iata
+            update_merge_on: True
+
+        icao_arr:
+            type: str
+            point: arr
+            data: icao
             update_merge_on: True
 
         date_str_arr:
@@ -171,11 +183,23 @@ airports:
             type: str
             update_merge_on: True
 
+        iata_airline:
+            type: str
+            update_merge_on: True
+
         flightnum:
             type: str
             update_merge_on: True
 
         airplane_type:
+            type: str
+            update_merge_on: True
+
+        icao_type:
+            type: str
+            update_merge_on: True
+
+        iata_type:
             type: str
             update_merge_on: True
 

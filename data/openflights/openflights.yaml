@@ -9,70 +9,83 @@ document:
 
 openflights:
     columns:
-        date:
+        Date:
             type: str
             format: YYYY-MM-DD HH:MM
             mandatory: True
             notes: "Only date part is mandatory"
+            fmcol: date_as_str
 
         From:
             type: str
             mandatory: True
             notes: "IATA or ICAO; mandatory unless `From_OID` is provided"
+            fmcol: icao_dep
 
-        From:
+        To:
             type: str
             mandatory: True
             notes: "IATA or ICAO; mandatory unless `To_OID` is provided"
+            fmcol: icao_arr
 
         Flight_Number:
             type: str
             mandatory: False
             notes: "If first two characters are an airline code, the code is used to override `Airline`"
+            fmcol: flightnum
 
         Airline:
             type: str
             mandatory: False
             notes: "Full name; airline codes not recognized; defaults to Unknown"
+            fmcol: airline
 
         Distance:
             type: int
             mandatory: False
             unit: miles
             notes: "Calculated if not provided"
+            fmcol: dist
 
         Duration:
             type: str
             mandatory: False
             format: HH:MM
             notes: "Estimated if not provided"
+            fmcol: duration
 
         Seat:
             type: str
             mandatory: False
+            fmcol: seat
 
         Seat_Type:
             type: str
             mandatory: False
             notes: "One of `W`, `A`, `M` for window, ailse or middle"
+            fmcol: position
 
         Class:
             type: str
             mandatory: False
             notes: "One of `F`, `C`, `P`, `Y` for first, business, premium economy or economy"
+            fmcol: class
 
-        Reasons:
+        Reason:
             type: str
             mandatory: False
             notes: "One of `B`, `L`, `C`, `O` for business, personal, crew or other"
+            fmcol: reason
 
         Plane:
             type: str
             mandatory: False
+            fmcol: airplane_type
 
         Registration:
             type: str
             mandatory: False
+            fmcol: airplane_reg
 
         Trip:
             type: str
@@ -82,23 +95,22 @@ openflights:
         Note:
             type: str
             mandatory: False
+            fmcol: comment
 
         From_OID:
             type: str
             mandatory: False
             notes: "Override `From` if provided"
+            fmcol: From_OID
 
         To_OID:
             type: str
             mandatory: False
             notes: "Overrides `To` if provided"
+            fmcol: To_OID
 
         Airline_OID:
             type: str
             mandatory: False
             notes: "Overrides `Airline` if provided"
-
-        Plane_OID:
-            type: str
-            mandatory: False
-            notes: "Overrides `Plane` if provided"
+            fmcol: Airline_OID

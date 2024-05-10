@@ -235,7 +235,7 @@ def get_parents_for_keys_with_all_values(d, values):
     return list(set.intersection(*sets))
 
 
-def get_parents_with_key_value(d, key, value):
+def get_parents_with_key_value(d, key, value, regex=False):
     """
     Find parental hireachy for given keys and values in the dictionary
     
@@ -247,24 +247,35 @@ def get_parents_with_key_value(d, key, value):
         d: Dictionary to parse
         key: Key to search for
         value: Value to search for
+        regex: If True, then key and value are regex patterns; else they are strings
     
     Returns:
         List of parents with matching (keys, values) as a tuple e.g.,
         `[ppp1, [pp1, [p1,  (k, v)], [p2,  (k, v)], [p3,  (k, v)]]]`.
     """
+    import sys
     res = []    
     for k,v in d.items():
         if isinstance(v, dict):
-            p = get_parents_with_key_value(v, key, value)
+            p = get_parents_with_key_value(v, key, value, regex)
             if p:
                 res.append([k] + p)
-        elif (k == key) and (v == value):
-            res.append((k, v))
+        else:
+            if regex:
+                k_match = re.compile(key).match(str(k)) is not None
+                v_match = re.compile(value).match(str(v)) is not None
+                match = k_match and v_match
+                
+            else:
+                match = (k == key) and (v == value)
+                
+            if match:
+                res.append((k, v))
 
     return res
 
 
-def get_parents_with_key_values(d, key, values):
+def get_parents_with_key_values(d, key, values, regex=False):
     """
     Find key parents that have the given `key: value` pair; returns result as a 
     dictionary of {parent: value, ...}
@@ -278,7 +289,7 @@ def get_parents_with_key_values(d, key, values):
         Dictionary of parents and values that matched on the key: value pair
         e.g. `{p1: v1, p2: v1, p3: v2}`.
     """
-    kvs = [get_parents_with_key_value(d, key, v) for v in values]
+    kvs = [get_parents_with_key_value(d, key, v, regex) for v in values]
     if len(kvs) > 0:
         # unpack the result
         res = get_bottom_lists(kvs, 2)
@@ -402,3 +413,22 @@ def print_selection_table(df, display_cols, col_widths):
         for cidx, col in enumerate(display_cols):
             msg += f"  {str(rprint[col])[slice(0,col_widths[cidx],)]:<{col_widths[cidx]}}"
         print(f"{idx+1:>2}:{msg}")
+
+def swap_keys_values(dictionary):
+    return dict((v,k) for k,v in dictionary.items())
+
+def get_keys(dictionary):
+    return [k for k, v in dictionary.items()]
+
+def index_diagnostics(pds, msg_prefix='', logger=module_logger):
+    idx_min = min(pds)
+    idx_max = max(pds)
+    idx_len = len(pds.index)
+    idx_rng = idx_max -idx_min + 1
+    idx_ler = idx_len == idx_rng
+    
+    logger.info(
+        msg_prefix +
+        f"\nIndex goes from {idx_min} to {idx_max} with range {idx_rng}"
+        f"\nIndex range does {'' if idx_ler else '*NOT* '}equal length {idx_len}"
+    )

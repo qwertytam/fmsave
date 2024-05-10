@@ -58,7 +58,7 @@ mpath = Path(__file__).parent.absolute()
 with open(mpath / "logging.yaml", "rt") as f:
     config = yaml.safe_load(f.read())
     f.close()
-logconfig.dictConfig(config)
+logging.config.dictConfig(config)
 
 APP_NAME = "fmsave"
 logger = logging.getLogger(APP_NAME)

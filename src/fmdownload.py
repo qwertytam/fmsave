@@ -27,6 +27,7 @@ import fmvalidate
 from constants import DT_INFO_YMDT, DT_INFO_YMDO, DT_INFO_YMD, DT_INFO_YM, DT_INFO_Y
 from constants import STR_TYPE_LU, DT_FMTS, KM_TO_MILES
 from constants import CLASS_OPENFLIGHTS_LU, SEAT_OPENFLIGHTS_LU, REASON_OPENFLIGHTS_LU
+from constants import CLASS_MYFLIGHTPATH_LU, REASON_MYFLIGHTPATH_LU
 
 import fmplanelu
 
@@ -1194,31 +1195,37 @@ class FMDownloader:
 
     def _export_to_myflightpath(self, fsave):
         exp_format = 'myflightpath'
-        
+
         exp_df = self.df
-        
+
         exp_data_dict = data.get_yaml(exp_format, exp_format, logger=self.logger)
         col_renames = utils.get_parents_with_key_values(exp_data_dict, 'fmcol', [r'^.+$'], True)
         col_renames = utils.swap_keys_values(col_renames)
-        
+
         for fmt in DT_FMTS.keys():
             fmt_rows = exp_df['dt_info'] == fmt
             dt_dmt = DT_FMTS[fmt]['myflightpath_fmt']
             dt_col = DT_FMTS[fmt]['srccol']
             exp_df.loc[fmt_rows, 'date_as_str'] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_dmt)
-        
+
         exp_cols = utils.get_keys(col_renames)
         exp_cols = [x for x in exp_cols if x in set(exp_df.columns)]
         exp_df = exp_df[exp_cols].rename(columns=col_renames)
-        
+
         for time_col in ['departure_time', 'arrival_time']:
             exp_df[time_col] = exp_df[time_col].dt.strftime('%H:%M')
-        
+
         exp_df['duration'] = exp_df['duration'].apply(lambda x: utils.strfdelta(x, '{H:02}:{M:02}'))
         exp_df['distance'] = exp_df['distance'].apply(lambda x: int(utils.km_to_miles(x)))
-        
+
         exp_df = exp_df.fillna('')
-        
+
+        exp_df['seat_type'] = exp_df['seat_type'].str.lower()
+        exp_df['class'] = exp_df['class'].replace(CLASS_MYFLIGHTPATH_LU)
+        exp_df['reason'] = exp_df['reason'].replace(REASON_MYFLIGHTPATH_LU)
+
+        exp_df['is_public'] = "Y"
+
         self.logger.info(f"exp_df.dtypes:\n{exp_df.dtypes}")
         self.logger.info(f"exp_df:\n{exp_df}")
         self.logger.info(f"exp_df:\n{exp_df.loc[100, :]}")

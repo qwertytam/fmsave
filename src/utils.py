@@ -1,4 +1,4 @@
-from modules import Formatter, logging, Path, re, td
+from modules import Formatter, logging, Path, re
 
 import constants
 

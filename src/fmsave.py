@@ -39,7 +39,7 @@ Arguments:
   save_path     Directory to save file(s) to
 """
 
-from modules import docopt, dt, logging, Path, yaml
+from modules import docopt, dt, logging, logconfig, Path, yaml
 
 import logins
 from data import update_ourairport_data, update_openflights_data, dl_aircraft_codes
@@ -54,7 +54,7 @@ mpath = Path(__file__).parent.absolute()
 with open(mpath / 'logging.yaml','rt') as f:
     config=yaml.safe_load(f.read())
     f.close()
-logging.config.dictConfig(config)
+logconfig.dictConfig(config)
 
 APP_NAME = 'fmsave'
 logger = logging.getLogger(APP_NAME)

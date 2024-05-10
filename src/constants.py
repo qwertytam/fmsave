@@ -57,6 +57,22 @@ REASON_OPENFLIGHTS_LU = {
     "Other": "O",
 }
 
+CLASS_MYFLIGHTPATH_LU = {
+    'Economy': 'Y',
+    'EconomyPlus': 'W',
+    'Business': 'J',
+    'First': 'F',
+    'Premium First': 'R',
+    'Private': 'X',
+}
+
+REASON_MYFLIGHTPATH_LU = {
+    "Business": "business",
+    "Personal": "leisure",
+    "Crew": "crew",
+    "Other": "",
+}
+
 STR_TYPE_LU = {
     'str': str,
     'float': float,

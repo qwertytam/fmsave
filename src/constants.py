@@ -8,11 +8,31 @@ DT_INFO_YM = "YM"
 DT_INFO_Y = "Y"
 
 DT_FMTS ={
-    DT_INFO_YMDT: {'fmt': '%Y-%m-%d %H:%M', 'srccol': 'time_dep'},
-    DT_INFO_YMDO: {'fmt': '%Y-%m-%d', 'srccol': 'date_as_dt'},
-    DT_INFO_YMD: {'fmt': '%Y-%m-%d', 'srccol': 'date_as_dt'},
-    DT_INFO_YM: {'fmt': '%Y-%m', 'srccol': 'date_as_dt'},
-    DT_INFO_Y: {'fmt': '%Y', 'srccol': 'date_as_dt'},
+    DT_INFO_YMDT: {
+        'fmt': '%Y-%m-%d %H:%M',
+        'myflightpath_fmt': '%Y-%m-%d',
+        'srccol': 'time_dep',
+        },
+    DT_INFO_YMDO: {
+        'fmt': '%Y-%m-%d',
+        'myflightpath_fmt': '%Y-%m-%d',
+        'srccol': 'date_as_dt',
+        },
+    DT_INFO_YMD: {
+        'fmt': '%Y-%m-%d',
+        'myflightpath_fmt': '%Y-%m-%d',
+        'srccol': 'date_as_dt',
+        },
+    DT_INFO_YM: {
+        'fmt': '%Y-%m',
+        'myflightpath_fmt': '%Y-%m-%d',
+        'srccol': 'date_as_dt',
+        },
+    DT_INFO_Y: {
+        'fmt': '%Y',
+        'myflightpath_fmt': '%Y-%m-%d',
+        'srccol': 'date_as_dt',
+        },
 }
 
 KM_TO_MILES = 1 / 1.6094

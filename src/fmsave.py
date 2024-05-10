@@ -55,12 +55,12 @@ from pathlib import Path
 
 mpath = Path(__file__).parent.absolute()
 
-with open(mpath / 'logging.yaml','rt') as f:
-    config=yaml.safe_load(f.read())
+with open(mpath / "logging.yaml", "rt") as f:
+    config = yaml.safe_load(f.read())
     f.close()
-logging.config.dictConfig(config)
+logconfig.dictConfig(config)
 
-APP_NAME = 'fmsave'
+APP_NAME = "fmsave"
 logger = logging.getLogger(APP_NAME)
 
 
@@ -92,21 +92,21 @@ def update_csv(fdu, fde, read_path, fread, fsave, dbf, daf):
 
     fdu.add_lat_lon(dbf, daf)
     # utils.index_diagnostics(fdu.df['flight_index'], "fmsave fdu 2", logger=logger)
-    
+
     # Get existing data from csv
     fde.read_pandas_from_csv(read_fp=fread)
     # utils.index_diagnostics(fde.df['flight_index'], "fmsave fde 1", logger=logger)
-    
+
     # Delete unwanted rows
     fde.remove_rows_by_date(dbf, daf)
-    utils.index_diagnostics(fde.df['flight_index'], "fmsave fde 2", logger=logger)
-    
+    utils.index_diagnostics(fde.df["flight_index"], "fmsave fde 2", logger=logger)
+
     # Insert new flights
     fde.insert_updated_rows(fdu)
-    utils.index_diagnostics(fde.df['flight_index'], "fmsave fde 3", logger=logger)
+    utils.index_diagnostics(fde.df["flight_index"], "fmsave fde 3", logger=logger)
     fde.add_timezones(gnusername=gn_un)
-    utils.index_diagnostics(fde.df['flight_index'], "fmsave fde 4", logger=logger)
-    
+    utils.index_diagnostics(fde.df["flight_index"], "fmsave fde 4", logger=logger)
+
     #  Save to csv
     fde.save_pandas_to_csv(save_fp=fsave)
 
@@ -130,7 +130,7 @@ def update_fm_data(fd, fread):
 
 def update_wiki():
     dl_aircraft_codes(logger)
-    
+
 
 def date_to_dt(ddmmyyyy):
     if ddmmyyyy:
@@ -139,43 +139,43 @@ def date_to_dt(ddmmyyyy):
     return ddmmyyyy
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = docopt(__doc__)
 
-    dlhtml = args['dlhtml']
-    export = args['export']
-    tocsv = args['tocsv']
-    upair = args['upair']
-    upcsv = args['upcsv']
-    upof = args['upof']
-    uptz = args['uptz']
-    updatefm = args['updatefm']
-    validate = args['validate']
-    upwiki = args['upwiki']
+    dlhtml = args["dlhtml"]
+    export = args["export"]
+    tocsv = args["tocsv"]
+    upair = args["upair"]
+    upcsv = args["upcsv"]
+    upof = args["upof"]
+    uptz = args["uptz"]
+    updatefm = args["updatefm"]
+    validate = args["validate"]
+    upwiki = args["upwiki"]
 
-    fread = args['<fread>']
-    fsave = args['<fsave>']
+    fread = args["<fread>"]
+    fsave = args["<fsave>"]
 
-    gn_un = args['<gn_un>']
-    read_path = args['<read_path>']
+    gn_un = args["<gn_un>"]
+    read_path = args["<read_path>"]
 
-    chrome_path = args['<chrome_path>']
+    chrome_path = args["<chrome_path>"]
     if chrome_path is None:
         chrome_path = defaults.DEFAULT_CHROME_PATH
 
     fd = FMDownloader(chrome_path=chrome_path, chrome_args=defaults.CHROME_OPTIONS)
 
     if dlhtml:
-        fd.fm_un = args['<fm_un>']
-        save_path = args['<save_path>']
-        max_pages = args['--max-pages']
+        fd.fm_un = args["<fm_un>"]
+        save_path = args["<save_path>"]
+        max_pages = args["--max-pages"]
         if max_pages is not None:
             max_pages = int(max_pages)
 
         dl_html(fd, max_pages, save_path)
 
     if export:
-        exp_format = args['<exp_format>']
+        exp_format = args["<exp_format>"]
         export_to(fd, exp_format, fread, fsave)
 
     if tocsv:
@@ -184,7 +184,7 @@ if __name__ == '__main__':
         html_to_csv(fd, gn_un, read_path, fsave)
 
     if upair:
-        airurl = args['<airurl>']
+        airurl = args["<airurl>"]
         if airurl is None:
             update_ourairport_data(logger=logger)
         else:
@@ -194,9 +194,9 @@ if __name__ == '__main__':
         if fsave is None:
             fsave = fread
 
-        dbf = args['--before']
-        daf = args['--after']
-        
+        dbf = args["--before"]
+        daf = args["--after"]
+
         dbf = date_to_dt(dbf)
         daf = date_to_dt(daf)
 
@@ -210,14 +210,14 @@ if __name__ == '__main__':
         if fsave is None:
             fsave = fread
         update_tz(fd, gn_un, fread, fsave)
-    
+
     if validate:
         if fsave is None:
             fsave = fread
         validate_dist_times(fd, fread, fsave)
-    
+
     if updatefm:
         update_fm_data(fd, fread)
-    
+
     if upwiki:
         update_wiki()

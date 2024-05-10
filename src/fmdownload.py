@@ -138,7 +138,7 @@ class FMDownloader:
     def _get_outer_html(self):
         WDSCRIPT_OUTER_HTML = 'return document.documentElement.outerHTML'
         self.pages.append(self.driver.execute_script(WDSCRIPT_OUTER_HTML))
-        
+
 
     def _get_next_page(self, last_page_timeout=10):
         WebDriverWait(self.driver, last_page_timeout)\
@@ -209,6 +209,7 @@ class FMDownloader:
                 f.write(page)
 
         self.logger.info(f"Saved {page_num + 1} pages to {save_path}")
+
 
     def read_fm_pages(self, read_path, fext='html'):
         """
@@ -532,6 +533,7 @@ class FMDownloader:
         print("\n")
         self.df['comment'] = self.df['comment'].str.replace(r'\n', '', regex=True)
 
+
     def links_from_options(self, table):
         BASE_URL = 'https://www.flightmemory.com/signin/'
         links = []
@@ -802,6 +804,7 @@ class FMDownloader:
             self._fuzzy_match_airports(airport_data, 'date_filter')
 
         self.df.drop(columns=['date_filter'], inplace=True)
+
 
     def _return_empty_tz_dict(self, row):
         tz = EMPTY_TZ_DICT
@@ -1156,7 +1159,7 @@ class FMDownloader:
         self.df['dur_pct_err'] = self.df['dist_pct_err'].abs()
 
 
-    def _export_to_openflights(self, fsave, exp_format='openflights'):
+    def _export_to_openflights(self, fsave):
         exp_format = 'openflights'
         exp_df = dataexport.match_openflights_airports(self.df, self.logger)
         exp_df = dataexport.match_openflights_airlines(exp_df, self.logger)
@@ -1189,8 +1192,18 @@ class FMDownloader:
         self.logger.info(f"Finished exporting with format `{exp_format}` to `{fsave}`")
 
 
+    def _export_to_myflightpath(self, fsave):
+        exp_format = 'myflightpath'
+        
+        exp_data_dict = data.get_yaml(exp_format, exp_format, logger=self.logger)
+        col_renames = utils.get_parents_with_key_values(exp_data_dict, 'fmcol', [r'^.+$'], True)
+        col_renames = utils.swap_keys_values(col_renames)
+        
+        self.logger.info(f"col_renames:\n{col_renames}")
+
+
     def export_to(self, exp_format, fsave):
-        formats = ['openflights']
+        formats = ['openflights', 'myflightpath']
         if not any(exp_format in f for f in formats):
             msg = f"Unrecognized export format `{exp_format}`; terminating"
             raise ValueError(msg)
@@ -1199,6 +1212,8 @@ class FMDownloader:
         
         if exp_format == 'openflights':
             self._export_to_openflights(fsave)
+        elif exp_format == 'myflightpath':
+            self._export_to_myflightpath(fsave)
 
 
     def update_fm_data(self):

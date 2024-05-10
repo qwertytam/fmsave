@@ -121,7 +121,7 @@ myflightpath:
             type: str
             required: false
             notes: "'Y/N' flat whether flight is visible to others"
-            fmcol: [...]
+            fmcol: None
 
         notes:
             type: str

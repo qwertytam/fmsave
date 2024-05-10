@@ -140,7 +140,7 @@ def get_openflights_data(data_set=OPENFLIGHTS_DATA_SETS[0],
 
     Args:
         data_set: which data set to get e.g., airports, airlines, planes
-        **kwargs: Keyword arguments passed to lower functions, notably `pd.read_csv`
+        **kwargs: Keyword arguments passed to lower functions, notably 'pd.read_csv'
     
     Returns:
         openflights data set as pandas data frame
@@ -182,9 +182,9 @@ def select_fuzzy_match(df, find_str, find_col, display_cols, col_widths, limit=1
         logger: Logger to use
     
     Return:
-        Row in df the user selected; `None` if the user selects none
+        Row in df the user selected; 'None' if the user selects none
     """
-    logger.debug(f"Finding string `{find_str}` in column `{find_col}`")
+    logger.debug(f"Finding string '{find_str}` in column `{find_col}'")
     res = process.extract(find_str, df[find_col], limit=limit)
     res = pd.DataFrame([(x[0], x[1]) for x in res], columns=['match', 'score'])
     res = pd.merge(res, df[display_cols], left_on='match', right_on=find_col)
@@ -192,7 +192,7 @@ def select_fuzzy_match(df, find_str, find_col, display_cols, col_widths, limit=1
     print(f"\nChoose match for '{find_str}':")
     utils.print_selection_table(res, display_cols, col_widths)
     sel = input("Which number or 'N' for none: ")
-    logger.debug(f"User entered `{sel}`")
+    logger.debug(f"User entered '{sel}'")
 
     if sel.lower() == 'n':
         logger.debug("Keeping current data\n")
@@ -208,7 +208,7 @@ def fuzzy_merge(df_l, df_r, key_l, key_r, threshold=95, limit=10):
     """
     Merge two data frames based on fuzzy logic matching
     
-    Uses fuzzy logic from the `thefuzz` package to merge two data frames. 
+    Uses fuzzy logic from the 'thefuzz' package to merge two data frames. 
     Merge closeness is based on the Levenshtein distance.
     
     Args:
@@ -223,7 +223,7 @@ def fuzzy_merge(df_l, df_r, key_l, key_r, threshold=95, limit=10):
         
     Returns:
         The merged data frames with all matches above the threshold in the 
-        `matches` column seperated by `', '`
+        'matches` column seperated by `', ''
     """
     sequences = df_r[key_r].tolist()
     
@@ -242,7 +242,7 @@ def get_wiki_data(data_set='aircraft', header=0, **kwargs):
 
     Args:
         data_set: which data set to get e.g., aircraft
-        **kwargs: Keyword arguments passed to lower functions, notably `pd.read_csv`
+        **kwargs: Keyword arguments passed to lower functions, notably 'pd.read_csv'
     
     Returns:
         wiki data set as panads data frame

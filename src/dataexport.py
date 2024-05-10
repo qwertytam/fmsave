@@ -54,9 +54,9 @@ def fuzzy_match_of_airports(df, airport_data, check_col, data_col, find_col, log
     Args:
         df: user data to find matches for
         airport_data: openflights airport data set
-        check_col: column name in `df` to update with match
-        data_col: column name in `airport_data` to search for match
-        find_col: column name in `df` to search for in `airport_data`
+        check_col: column name in 'df' to update with match
+        data_col: column name in 'airport_data' to search for match
+        find_col: column name in 'df` to search for in `airport_data'
         logger: Python logger to use
     
     Returns:
@@ -165,7 +165,7 @@ def fuzzy_match_of_airlines_iata_name(df, filter_col, df_name_col, df_iata_col,
     
     Args:
         df: user data to find matches for
-        filter_col: column name in df to filter on `isna()` to find matches for
+        filter_col: column name in df to filter on 'isna()' to find matches for
         df_name_col: column name in df that has airline name
         df_iata_col: column name in df that has airline iata code
         airline_data: openflights airline data set

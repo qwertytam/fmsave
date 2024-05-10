@@ -18,7 +18,7 @@ def check_create_path(dir_path, logger=module_logger):
     """
     Check if path exists, if not, creates path
     
-    Checks if `dir_path` contains a file (by looking for a `.` after any
+    Checks if 'dir_path' contains a file (by looking for a '.' after any
     slashes), resolves the path, then creates path if it does not already exist
     
     Args:
@@ -69,7 +69,7 @@ def list_depth(l, n=0):
 
 def get_data_dict_column_names(data_dict, top_level_parent):
     """
-    Gets names of keys under the keys `top_level_parent`: `columns`:
+    Gets names of keys under the keys 'top_level_parent': 'columns':
     
     For example:
     ```
@@ -125,7 +125,7 @@ def get_keys_and_parents(d, value):
     """
     Find keys and associated parent hireachy that for the given value.
     
-    Searches recurseively through dictionary to find `key: value` pairs that 
+    Searches recurseively through dictionary to find 'key: value' pairs that 
     contain the given value. Then returns the parents for each key that contains
     the given value.
     
@@ -135,7 +135,7 @@ def get_keys_and_parents(d, value):
     
     Returns:
         Keys and parents from dictionary for given value as a nested list e.g,
-        [['parent1', ['parent2', ['key', 'value']]]] Returns empty list `[]`
+        [['parent1', ['parent2', ['key', 'value']]]] Returns empty list '[]'
         if no matching key: value pairs found.
     """
     res = []
@@ -154,11 +154,12 @@ def get_parents_for_keys_with_value(d, value):
     """
     Get parents of keys from dictionary that have the given value
     
-    Searches recurseively through dictionary to find `key: value` pairs that 
+    Searches recurseively through dictionary to find 'key: value' pairs that 
     contain the given value. Then returns the first level parents for each key.
     
-    For example, for `value = 'date'` with:
-    `d = {
+    For example, for 'value = 'date'' with:
+    ```
+    d = {
         'date_str_dep': {
             'data': 'date',
             'format': 'yyyy-mm-dd',
@@ -189,9 +190,10 @@ def get_parents_for_keys_with_value(d, value):
             'format': float,
             'leg': 'arr',
             },
-        }`
+        }
+        ```
     
-    Result is `['date_str_dep', 'date_str_arr']`
+    Result is '['date_str_dep', 'date_str_arr']'
     
     Args:
         d: Dictionary to parse
@@ -219,9 +221,9 @@ def get_parents_for_keys_with_all_values(d, values):
     Searches recurseively through dictionary to find keys that : value pairs that 
     contain the given value. Then returns the parents.
     
-    This is similar to `get_parent_keys_with_value(d, value)` except it looks 
-    for multiple values. From the example given in `get_parent_keys_with_value(d, value)`,
-    for `values = ['arr', float]` the result is `['lon_arr', 'lat_arr']`.
+    This is similar to 'get_parent_keys_with_value(d, value)' except it looks 
+    for multiple values. From the example given in 'get_parent_keys_with_value(d, value)',
+    for 'values = ['arr', float]' the result is '['lon_arr', 'lat_arr']'.
     
     Note the result is the intersection (i.e. boolean AND) of the values, not 
     the union (i.e. boolean OR).
@@ -243,7 +245,7 @@ def get_parents_with_key_value(d, key, value, regex=False):
     """
     Find parental hireachy for given keys and values in the dictionary
     
-    Searches recurseively through dictionary to find `key: value` pairs that 
+    Searches recurseively through dictionary to find 'key: value' pairs that 
     contain the given value. Then returns the parents, keys and values each 
     match.
     
@@ -255,7 +257,7 @@ def get_parents_with_key_value(d, key, value, regex=False):
     
     Returns:
         List of parents with matching (keys, values) as a tuple e.g.,
-        `[ppp1, [pp1, [p1,  (k, v)], [p2,  (k, v)], [p3,  (k, v)]]]`.
+        '[ppp1, [pp1, [p1,  (k, v)], [p2,  (k, v)], [p3,  (k, v)]]]'.
     """
     import sys
     res = []    
@@ -281,7 +283,7 @@ def get_parents_with_key_value(d, key, value, regex=False):
 
 def get_parents_with_key_values(d, key, values, regex=False):
     """
-    Find key parents that have the given `key: value` pair; returns result as a 
+    Find key parents that have the given 'key: value' pair; returns result as a 
     dictionary of {parent: value, ...}
     
     Args:
@@ -291,7 +293,7 @@ def get_parents_with_key_values(d, key, values, regex=False):
 
     Returns:
         Dictionary of parents and values that matched on the key: value pair
-        e.g. `{p1: v1, p2: v1, p3: v2}`.
+        e.g. '{p1: v1, p2: v1, p3: v2}'.
     """
     kvs = [get_parents_with_key_value(d, key, v, regex) for v in values]
     if len(kvs) > 0:
@@ -311,7 +313,7 @@ def get_parents_with_key_values(d, key, values, regex=False):
 
 def get_parents_list_with_key_values(d, key, values):
     """
-    Find key parents that have the given `key: value` pair; returns parents as
+    Find key parents that have the given 'key: value' pair; returns parents as
     a list
     
     Args:

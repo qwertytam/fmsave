@@ -19,19 +19,19 @@ openflights:
         From:
             type: str
             mandatory: True
-            notes: "IATA or ICAO; mandatory unless `From_OID` is provided"
+            notes: "IATA or ICAO; mandatory unless 'From_OID' is provided"
             fmcol: icao_dep
 
         To:
             type: str
             mandatory: True
-            notes: "IATA or ICAO; mandatory unless `To_OID` is provided"
+            notes: "IATA or ICAO; mandatory unless 'To_OID' is provided"
             fmcol: icao_arr
 
         Flight_Number:
             type: str
             mandatory: False
-            notes: "If first two characters are an airline code, the code is used to override `Airline`"
+            notes: "If first two characters are an airline code, the code is used to override 'Airline'"
             fmcol: flightnum
 
         Airline:
@@ -62,19 +62,19 @@ openflights:
         Seat_Type:
             type: str
             mandatory: False
-            notes: "One of `W`, `A`, `M` for window, ailse or middle"
+            notes: "One of 'W`, `A`, `M' for window, ailse or middle"
             fmcol: position
 
         Class:
             type: str
             mandatory: False
-            notes: "One of `F`, `C`, `P`, `Y` for first, business, premium economy or economy"
+            notes: "One of 'F`, `C`, `P`, `Y' for first, business, premium economy or economy"
             fmcol: class
 
         Reason:
             type: str
             mandatory: False
-            notes: "One of `B`, `L`, `C`, `O` for business, personal, crew or other"
+            notes: "One of 'B`, `L`, `C`, `O' for business, personal, crew or other"
             fmcol: reason
 
         Plane:
@@ -100,17 +100,17 @@ openflights:
         From_OID:
             type: str
             mandatory: False
-            notes: "Override `From` if provided"
+            notes: "Override 'From' if provided"
             fmcol: From_OID
 
         To_OID:
             type: str
             mandatory: False
-            notes: "Overrides `To` if provided"
+            notes: "Overrides 'To' if provided"
             fmcol: To_OID
 
         Airline_OID:
             type: str
             mandatory: False
-            notes: "Overrides `Airline` if provided"
+            notes: "Overrides 'Airline' if provided"
             fmcol: Airline_OID

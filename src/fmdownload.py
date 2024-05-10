@@ -130,7 +130,7 @@ class FMDownloader:
         try:
             wait.until(EC.element_to_be_clickable(
                 (By.XPATH, "//*[contains(text(), 'FLIGHTDATA')]"))).click()
-            self.logger.info("Found `FLIGHTDATA`; assumed login successful")
+            self.logger.info("Found 'FLIGHTDATA'; assumed login successful")
             self.logged_in = True
         except TimeoutException:
             self.logger.error("TimeoutException: Assuming wrong credentials; exiting")
@@ -390,7 +390,7 @@ class FMDownloader:
         pat += '|(?>(?>2|B|C|D|F|G|I|M|P|U|Z)-\\w{2,5})'  # for registrations with single letter prefix
         pat += '|(?>(?>3|4|5|6|7|8|9)[A-Z]-\\w{2,5})'  # for registrations with a prefix starting with a number then a letter
         pat += '|(?>(?>C|D|E|H|J|L|O|P|R|S|T|U|V|X|Y|Z)\\w-\\w{2,5})'  # for registrations with a prefix starting with a letter from C onwards, then a number or a letter
-        pat += '|(?>A(?>[P2-8])-\\w{2,5})'  # for registrations with a prefix starting with `A` then a number or a letter
+        pat += '|(?>A(?>[P2-8])-\\w{2,5})'  # for registrations with a prefix starting with 'A' then a number or a letter
         pat += ')(?>\\s|$)'  # end of string
 
         expected_cols = 3
@@ -648,12 +648,12 @@ class FMDownloader:
         Add airport latitude and longitude information to pandas data frame 
         based on OpenAirports keywords.
         
-        The function `add_lat_lon()` matches based on IATA codes. For those 
+        The function 'add_lat_lon()' matches based on IATA codes. For those 
         airports without an IATA code, this function uses OpenAirport keywords 
         to match the airport information.
         
         Args:
-            airport_data: OpenAirports information passed from `add_lat_lon()`
+            airport_data: OpenAirports information passed from 'add_lat_lon()'
         """
 
         values = ['ident', 'name', 'lat', 'lon', 'iso_country', 'municipality']
@@ -848,7 +848,7 @@ class FMDownloader:
             lat = row[leg_data[leg]['lat']]
             lon = row[leg_data[leg]['lon']]
             date = row[leg_data[leg]['date']]
-            self.logger.debug(f"find_tz for `{leg}`: `{lat}` `{lon}` `{date}`")
+            self.logger.debug(f"find_tz for '{leg}`: `{lat}` `{lon}` `{date}'")
             
             valid_posn = not(math.isnan(lat) or math.isnan(lon))
             valid_date = valid_date_pat.match(str(date))
@@ -985,8 +985,8 @@ class FMDownloader:
                     valid_date_test = False
                     
                 self.logger.debug(
-                    f"For date `{date_to_check}` "
-                    f"pattern match is `{valid_date}` "
+                    f"For date '{date_to_check}' "
+                    f"pattern match is '{valid_date}' "
                     f"updated valid_date_test to {valid_date_test}")
 
             if all([update_blanks_only, valid_date_test]):
@@ -1007,8 +1007,8 @@ class FMDownloader:
             else:
                 self.logger.debug(
                     f"Skipping index {index} due to "
-                    f"update_blanks_only `{update_blanks_only}` "
-                    f"valid_date_test `{valid_date_test}` ")
+                    f"update_blanks_only '{update_blanks_only}' "
+                    f"valid_date_test '{valid_date_test}' ")
                 next
             
             utils.percent_complete(updated_flights, num_flights)
@@ -1199,7 +1199,7 @@ class FMDownloader:
         exp_df.insert(loc=col_loc, column='Trip', value='')
 
         exp_df.to_csv(fsave, index=False, encoding='utf-8')
-        self.logger.info(f"Finished exporting with format `{exp_format}` to `{fsave}`")
+        self.logger.info(f"Finished exporting with format '{exp_format}` to `{fsave}'")
 
 
     def _export_to_myflightpath(self, fsave):
@@ -1244,16 +1244,16 @@ class FMDownloader:
         self.logger.info(f"exp_df:\n{exp_df.loc[exp_df['class'] == 'X', :]}")
         
         exp_df.to_csv(fsave, index=False, encoding='utf-8')
-        self.logger.info(f"Finished exporting with format `{exp_format}` to `{fsave}`")
+        self.logger.info(f"Finished exporting with format '{exp_format}` to `{fsave}'")
 
 
     def export_to(self, exp_format, fsave):
         formats = ['openflights', 'myflightpath']
         if not any(exp_format in f for f in formats):
-            msg = f"Unrecognized export format `{exp_format}`; terminating"
+            msg = f"Unrecognized export format '{exp_format}'; terminating"
             raise ValueError(msg)
         
-        self.logger.info(f"Continuing with exp format `{exp_format}`")
+        self.logger.info(f"Continuing with exp format '{exp_format}'")
         
         if exp_format == 'openflights':
             if fsave is None:
@@ -1302,7 +1302,7 @@ class FMDownloader:
             num_urls = len(urls.index)
             new_entry = lu_in_use[lu]
 
-            self.logger.info(f"Replacing `{lu}` with `{new_entry}`")
+            self.logger.info(f"Replacing '{lu}` with `{new_entry}'")
             for url in urls:
                 self.driver.get(url)
                 input_type = self.driver.find_element(By.NAME, fm_text_box_name)

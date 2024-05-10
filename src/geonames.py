@@ -150,13 +150,13 @@ class GeoNames:
         Args:
             lat: latitude in decimal format
             lon: longitude in decimal format
-            date: date in `YYYY-MM-DD` format; optional, uses current system
+            date: date in 'YYYY-MM-DD' format; optional, uses current system
                 date if not given
             timeout: time, in seconds, to wait for GeoNames to respond
             maxretries: maximum retries to get request from GeoNames
 
         Return:
-            Dictionary with `lat`, `lon`, `date` `tz_id` and `gmt_offset`
+            Dictionary with 'lat`, `lon`, `date` `tz_id` and `gmt_offset'
         """
         params = {
             'lat': lat,

@@ -30,7 +30,7 @@ Commands:
 Arguments:
   airurl        URL to download airport info from
   chrome_path   Path to Chrome executable
-  exp_format    Format to export to; one of ['openflights', ]
+  exp_format    Format to export to; one of ['openflights', 'myflightpath']
   fm_un         Flight Memory username
   fread         Path to and file name of csv file to read from
   fsave         Path to and file name of csv file to save to; if not provided, then uses <fread>
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     if export:
         exp_format = args['<exp_format>']
         if fsave is None:
-            fsave = 'openflights.csv'
+            fsave = 'exported_flights.csv'
         export_to(fd, exp_format, fread, fsave)
 
     if tocsv:

@@ -399,6 +399,7 @@ def percent_complete(step, total_steps, bar_width=60, title="", print_perc=True)
     sys.stdout.write("\r" + disp)
     sys.stdout.flush()
 
+
 def print_selection_table(df, display_cols, col_widths):
     # Header row
     msg = f" #:"
@@ -414,21 +415,10 @@ def print_selection_table(df, display_cols, col_widths):
             msg += f"  {str(rprint[col])[slice(0,col_widths[cidx],)]:<{col_widths[cidx]}}"
         print(f"{idx+1:>2}:{msg}")
 
+
 def swap_keys_values(dictionary):
     return dict((v,k) for k,v in dictionary.items())
 
+
 def get_keys(dictionary):
     return [k for k, v in dictionary.items()]
-
-def index_diagnostics(pds, msg_prefix='', logger=module_logger):
-    idx_min = min(pds)
-    idx_max = max(pds)
-    idx_len = len(pds.index)
-    idx_rng = idx_max -idx_min + 1
-    idx_ler = idx_len == idx_rng
-    
-    logger.info(
-        msg_prefix +
-        f"\nIndex goes from {idx_min} to {idx_max} with range {idx_rng}"
-        f"\nIndex range does {'' if idx_ler else '*NOT* '}equal length {idx_len}"
-    )

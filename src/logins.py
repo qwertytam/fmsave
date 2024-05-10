@@ -1,4 +1,4 @@
-from modules import getpass
+import getpass
 
 def get_fm_un():
     return input("Flight Memory username:")

@@ -1,10 +1,22 @@
-import modules
-from modules import bs, dt, logging, np, Path, pd, re
-from modules import webdriver, TimeoutException, By, EC, Select, WebDriverWait
-
+import io
+import sys
+from bs4 import BeautifulSoup as bs
+from selenium import webdriver
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support.select import Select
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
+import math
+import re
+import numpy as np
+import pandas as pd
+from pathlib import Path
 from geonames import GeoNames
 from geonames import (GeoNamesDateReturnError, GeoNamesStopError)
 from geonames import EMPTY_TZ_DICT
+from datetime import datetime as dt
+import logging
 
 import logins
 import data
@@ -28,7 +40,7 @@ module_logger.info(f"Module {_module_logger_name} logger initialized")
 
 
 def _get_str_for_pd(page):
-    sio = modules.io.StringIO(page)
+    sio = io.StringIO(page)
     soup = bs(sio, 'html5lib')
     flight_tbl = soup.select_one('.container').find_all('table', recursive=False)[1]
     sub_tbls = flight_tbl.find_all('table', recursive=True)
@@ -122,7 +134,7 @@ class FMDownloader:
             self.logged_in = True
         except TimeoutException:
             self.logger.error("TimeoutException: Assuming wrong credentials; exiting")
-            modules.sys.exit()
+            sys.exit()
 
 
     def _get_number_of_pages(self):
@@ -569,7 +581,7 @@ class FMDownloader:
             self.logger.debug(f"Reading page {idx+1} to self.df")
             flight_tbl = _get_str_for_pd(page)
             df = pd.read_html(
-                    modules.io.StringIO(str(flight_tbl)),
+                    io.StringIO(str(flight_tbl)),
                     flavor='bs4',)[0]
             df['detail_url'] = self.links_from_options(flight_tbl)
             self.df = pd.concat([self.df, df],
@@ -728,7 +740,7 @@ class FMDownloader:
 
         for mmidx, mm in mismatch_rows.iterrows():
             for leg in ['_dep', '_arr']:
-                if modules.math.isnan(mm['lat' + leg]):
+                if math.isnan(mm['lat' + leg]):
                     find_str = mm['city_county_name' + leg]
                     sel_row = data.select_fuzzy_match(
                         df, find_str, 'name', display_cols,
@@ -838,7 +850,7 @@ class FMDownloader:
             date = row[leg_data[leg]['date']]
             self.logger.debug(f"find_tz for '{leg}`: `{lat}` `{lon}` `{date}'")
             
-            valid_posn = not(modules.math.isnan(lat) or modules.math.isnan(lon))
+            valid_posn = not(math.isnan(lat) or math.isnan(lon))
             valid_date = valid_date_pat.match(str(date))
             
             if valid_date and valid_posn:

@@ -39,18 +39,22 @@ Arguments:
   save_path     Directory to save file(s) to
 """
 
-from modules import docopt, dt, logging, Path, yaml
-
 import logins
 from data import update_ourairport_data, update_openflights_data, dl_aircraft_codes
 from fmdownload import FMDownloader
+from datetime import datetime as dt
+from docopt import docopt
 import utils
 from constants import DEFAULT_CHROME_PATH, CHROME_OPTIONS
 
 # Set up logging
-
+import logging
+import logging.config
+import yaml
+from pathlib import Path
 
 mpath = Path(__file__).parent.absolute()
+
 with open(mpath / 'logging.yaml','rt') as f:
     config=yaml.safe_load(f.read())
     f.close()

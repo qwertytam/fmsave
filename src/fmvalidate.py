@@ -1,5 +1,6 @@
-from modules import dist, pd
-
+from geopy import distance as dist
+import pandas as pd
+import sys
 from constants import MINS_PER_HOUR
 
 def calc_distance(df, lat_fr, lon_fr, lat_to, lon_to):

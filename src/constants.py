@@ -1,4 +1,5 @@
-from modules import dt, td
+from datetime import datetime as dt
+from datetime import timedelta as td
 
 DT_INFO_YMDT = "YMDT"
 DT_INFO_YMDO = "YMDO"

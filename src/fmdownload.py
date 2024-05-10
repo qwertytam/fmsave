@@ -24,11 +24,8 @@ import utils
 import dataexport
 import fmvalidate
 
-from constants import DT_INFO_YMDT, DT_INFO_YMDO, DT_INFO_YMD, DT_INFO_YM, DT_INFO_Y
-from constants import STR_TYPE_LU, DT_FMTS, KM_TO_MILES
-from constants import CLASS_OPENFLIGHTS_LU, SEAT_OPENFLIGHTS_LU, REASON_OPENFLIGHTS_LU
-from constants import CLASS_MYFLIGHTPATH_LU, REASON_MYFLIGHTPATH_LU
-
+from constants import DistanceConversions
+import lookups
 import fmplanelu
 
 mpath = Path(__file__).parent.absolute()
@@ -291,11 +288,11 @@ class FMDownloader:
 
         # year, month, day and time available
         condition = self.df['time_dep'].str.len() > 0
-        self.df.loc[condition, 'dt_info'] = DT_INFO_YMDT
+        self.df.loc[condition, 'dt_info'] = lookups.DT_INFO_YMDT
         
         # year, month, day and offset available, but no time
         condition = ~self.df['date_offset'].isna() & self.df['dt_info'].isna()
-        self.df.loc[condition, 'dt_info'] = DT_INFO_YMDO
+        self.df.loc[condition, 'dt_info'] = lookups.DT_INFO_YMDO
         self.df.loc[condition, 'time_dep'] = None
         self.df.loc[condition, 'time_arr'] = None
 
@@ -309,7 +306,7 @@ class FMDownloader:
         # year, month, day only available
         pat = r'(\d{2})\.(\d{2})\.(\d{4})'
         condition = (self.df['dt_info'].isna()) & (self.df['date'].str.match(pat))
-        self.df.loc[condition, 'dt_info'] = DT_INFO_YMD
+        self.df.loc[condition, 'dt_info'] = lookups.DT_INFO_YMD
         
         repl = r'\3-\2-\1'
         self.df.loc[condition, 'date'] = self.df.loc[condition, 'date']\
@@ -318,7 +315,7 @@ class FMDownloader:
         # year, month only available
         pat = r'(\d{2})\.(\d{4})'
         condition = (self.df['dt_info'].isna()) & (self.df['date'].str.match(pat))
-        self.df.loc[condition, 'dt_info'] = DT_INFO_YM
+        self.df.loc[condition, 'dt_info'] = lookups.DT_INFO_YM
         
         repl = r'\2-\1'
         self.df.loc[condition, 'date'] = self.df.loc[condition, 'date']\
@@ -327,7 +324,7 @@ class FMDownloader:
         # year only available
         pat = r'\d{4}'
         condition = (self.df['dt_info'].isna()) & (self.df['date'].str.match(pat))
-        self.df.loc[condition, 'dt_info'] = DT_INFO_Y
+        self.df.loc[condition, 'dt_info'] = lookups.DT_INFO_Y
         
         pat = r'^\s*$'
         repl = '0'
@@ -346,11 +343,6 @@ class FMDownloader:
 
 
     def _split_seat_col(self):
-        SEAT_POSITIONS = ['Window', 'Aisle', 'Middle']
-        CLASS = ['Economy', 'EconomyPlus', 'Business', 'First']
-        ROLE = ['Passenger', 'Crew', 'Cockpit']
-        REASON = ['Personal', 'Business', 'virtuell']
-
         expected_cols = 4
         str_split = self.df['seat_class_place'].str.split(' ',
                                                           expand=True,
@@ -377,7 +369,7 @@ class FMDownloader:
         self.df[['seat', 'position']] = self.df['seat_position']\
             .str.split('\\/', expand=True)
         
-        move_col_rows = self.df['class'].isin(ROLE)
+        move_col_rows = self.df['class'].isin(lookups.FM_ROLE)
         self.df.loc[move_col_rows, 'reason'] = self.df.loc[move_col_rows, 'role']
         self.df.loc[move_col_rows, 'role'] = self.df.loc[move_col_rows, 'class']
         self.df.loc[move_col_rows, 'class'] = ''
@@ -424,7 +416,7 @@ class FMDownloader:
             data_dict,
             key='type',
             values=['float', 'str'])
-        col_types = utils.replace_item(col_types, STR_TYPE_LU)
+        col_types = utils.replace_item(col_types, lookups.STR_TYPE_LU)
         
         wiki_data = data.get_wiki_data(data_set, names=col_names, dtype=col_types)
 
@@ -902,7 +894,7 @@ class FMDownloader:
             # While we're getting the columns, will also see which rows have
             # Year-Month-Day-Timezone information
             time_date_cols[leg] = utils.find_keys_containing(data_keys, leg)[leg]
-            fill_rows = self.df['dt_info'] == DT_INFO_YMDT
+            fill_rows = self.df['dt_info'] == lookups.DT_INFO_YMDT
             self.logger.debug(f"fill_rows {leg} YMDT is length {sum(fill_rows)}")
             
             if time_date_cols[leg]['date'] in self.df.columns:
@@ -919,7 +911,7 @@ class FMDownloader:
                             time_date_cols[leg]['time']].dt.strftime('%Y-%m-%d'))
 
         # Can also get dates for where we have Year-Month-Day information
-        fill_rows = (self.df['dt_info'] == DT_INFO_YMD)
+        fill_rows = (self.df['dt_info'] == lookups.DT_INFO_YMD)
         self.logger.debug(f"fill_rows YMD is length {sum(fill_rows)}")
         date_cols = [time_date_cols['dep']['date'],
                      time_date_cols['arr']['date']]
@@ -949,8 +941,8 @@ class FMDownloader:
             rows_to_update = self.df[tz_cols].replace(
                 '', np.nan, inplace=False).isna().any(axis=1)
             rows_to_update = rows_to_update & (
-                (self.df['dt_info'] == DT_INFO_YMDT) | \
-                    (self.df['dt_info'] == DT_INFO_YMD))
+                (self.df['dt_info'] == lookups.DT_INFO_YMDT) | \
+                    (self.df['dt_info'] == lookups.DT_INFO_YMD))
         else:
             rows_to_update = pd.Series(data=True, index=self.df.index)
 
@@ -1046,7 +1038,7 @@ class FMDownloader:
             self.fms_data_dict,
             key='type',
             values=['float', 'str'])
-        col_types = utils.replace_item(col_types, STR_TYPE_LU)
+        col_types = utils.replace_item(col_types, lookups.STR_TYPE_LU)
                 
         self.df = pd.read_csv(fp, dtype=col_types)
 
@@ -1178,10 +1170,10 @@ class FMDownloader:
         col_renames = utils.get_parents_with_key_values(exp_data_dict, 'fmcol', [r'^.+$'], True)
         col_renames = utils.swap_keys_values(col_renames)
 
-        for fmt in DT_FMTS.keys():
+        for fmt in lookups.DT_FMTS.keys():
             fmt_rows = exp_df['dt_info'] == fmt
-            dt_dmt = DT_FMTS[fmt]['fmt']
-            dt_col = DT_FMTS[fmt]['srccol']
+            dt_dmt = lookups.DT_FMTS[fmt]['fmt']
+            dt_col = lookups.DT_FMTS[fmt]['srccol']
             exp_df.loc[fmt_rows, 'date_as_str'] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_dmt)
 
         exp_cols = utils.get_keys(col_renames)
@@ -1189,11 +1181,11 @@ class FMDownloader:
         exp_df = exp_df[exp_cols].rename(columns=col_renames)
 
         exp_df['Duration'] = exp_df['Duration'].dt.to_pytimedelta().astype('str')
-        exp_df['Distance'] = exp_df['Distance'] * KM_TO_MILES
+        exp_df['Distance'] = exp_df['Distance'].apply(utils.km_to_miles)
         exp_df['Distance'] = exp_df['Distance'].astype('int64')
-        exp_df['Class'] = exp_df['Class'].replace(CLASS_OPENFLIGHTS_LU)
-        exp_df['Reason'] = exp_df['Reason'].replace(REASON_OPENFLIGHTS_LU)
-        exp_df['Seat_Type'] = exp_df['Seat_Type'].replace(SEAT_OPENFLIGHTS_LU)
+        exp_df['Class'] = exp_df['Class'].replace(lookups.CLASS_OPENFLIGHTS_LU)
+        exp_df['Reason'] = exp_df['Reason'].replace(lookups.REASON_OPENFLIGHTS_LU)
+        exp_df['Seat_Type'] = exp_df['Seat_Type'].replace(lookups.SEAT_OPENFLIGHTS_LU)
         
         col_loc = exp_df.columns.get_loc('Registration') + 1
         exp_df.insert(loc=col_loc, column='Trip', value='')
@@ -1211,10 +1203,10 @@ class FMDownloader:
         col_renames = utils.get_parents_with_key_values(exp_data_dict, 'fmcol', [r'^.+$'], True)
         col_renames = utils.swap_keys_values(col_renames)
 
-        for fmt in DT_FMTS.keys():
+        for fmt in lookups.DT_FMTS.keys():
             fmt_rows = exp_df['dt_info'] == fmt
-            dt_dmt = DT_FMTS[fmt]['myflightpath_fmt']
-            dt_col = DT_FMTS[fmt]['srccol']
+            dt_dmt = lookups.DT_FMTS[fmt]['myflightpath_fmt']
+            dt_col = lookups.DT_FMTS[fmt]['srccol']
             exp_df.loc[fmt_rows, 'date_as_str'] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_dmt)
 
         exp_df['class'].mask(exp_df['airline'] == 'Private flight', 'X', inplace=True), 
@@ -1232,8 +1224,8 @@ class FMDownloader:
         exp_df = exp_df.fillna('')
 
         exp_df['seat_type'] = exp_df['seat_type'].str.lower()
-        exp_df['class'] = exp_df['class'].replace(CLASS_MYFLIGHTPATH_LU)
-        exp_df['reason'] = exp_df['reason'].replace(REASON_MYFLIGHTPATH_LU)
+        exp_df['class'] = exp_df['class'].replace(lookups.CLASS_MYFLIGHTPATH_LU)
+        exp_df['reason'] = exp_df['reason'].replace(lookups.REASON_MYFLIGHTPATH_LU)
 
         exp_df['is_public'] = "Y"
         

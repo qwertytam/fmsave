@@ -1236,12 +1236,6 @@ class FMDownloader:
         exp_df['reason'] = exp_df['reason'].replace(REASON_MYFLIGHTPATH_LU)
 
         exp_df['is_public'] = "Y"
-
-        self.logger.info(f"exp_df.dtypes:\n{exp_df.dtypes}")
-        self.logger.info(f"exp_df:\n{exp_df}")
-        self.logger.info(f"exp_df:\n{exp_df.loc[100, :]}")
-        
-        self.logger.info(f"exp_df:\n{exp_df.loc[exp_df['class'] == 'X', :]}")
         
         exp_df.to_csv(fsave, index=False, encoding='utf-8')
         self.logger.info(f"Finished exporting with format '{exp_format}` to `{fsave}'")

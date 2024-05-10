@@ -1,12 +1,4 @@
-from pathlib import Path
-import requests
-import logging
-from thefuzz import process
-import pandas as pd
-import yaml
-import wikipedia as wp
-import re
-
+from modules import logging, pd, Path, re, requests, process, wp, yaml
 import utils
 
 mpath = Path(__file__).parent.absolute()

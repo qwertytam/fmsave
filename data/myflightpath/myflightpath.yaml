@@ -1,0 +1,129 @@
+document:
+    version: 1
+    data_source: myflightpath
+    url: https://myflightpath.club/my-account/import-flights/custom/intro
+    encoding: utf-8
+    seperator: \,
+    newrow: \r\n
+    headerrow: True
+    notes: "Records missing required values will not be imported"
+
+myflightpath:
+    columns:
+        flight_date:
+            type: str
+            format: YYYY-MM-DD
+            required: True
+            notes: "Can be incomplete e.g., 2009"
+            fmcol: date_as_dt
+
+        flight_number:
+            type: str
+            format: XXNNNN
+            required: False
+            notes: "XXNNNN for two character iata or YYYNNNN for three character icao airline code"
+            fmcol: flightnum
+
+        airline_icao:
+            type: str
+            required: False
+            fmcol: None
+
+        airline_iata:
+            type: str
+            required: False
+            fmcol: iata_airline
+
+        departure_airport_icao:
+            type: str
+            required: True
+            notes: "Four character icao airport code; has priority over iata code"
+            fmcol: icao_dep
+
+        departure_airport_iata:
+            type: str
+            required: True
+            fmcol: iata_dep
+
+        departure_time:
+            type: str
+            format: HH:MM
+            required: False
+            notes: "24-hour time"
+            fmcol: time_dep
+
+        arrival_airport_icao:
+            type: str
+            required: True
+            notes: "Four character icao airport code; has priority over iata code"
+            fmcol: icao_arr
+
+        arrival_airport_iata:
+            type: str
+            required: True
+            fmcol: iata_arr
+
+        arrival_time:
+            type: str
+            format: HH:MM
+            required: False
+            notes: "24-hour time"
+            fmcol: time_arr
+
+        duration:
+            type: str
+            required: False
+            format: HH:MM
+            notes: "Estimated if not provided"
+            fmcol: duration
+
+        distance:
+            type: int
+            required: False
+            unit: miles
+            notes: "Calculated if not provided"
+            fmcol: dist
+
+        aircraft_icao:
+            type: str
+            required: False
+            fmcol: icao_type
+
+        registration:
+            type: str
+            required: False
+            fmcol: airplane_reg
+
+        class:
+            type: str
+            required: False
+            notes: "Accepted values are Y for economy, W for premium economy, J for business, F for first, R for premium first, X for private"
+            fmcol: class
+
+        seat_number:
+            type: str
+            required: False
+            fmcol: seat
+
+        seat_type:
+            type: str
+            required: False
+            notes: "'window', 'middle', 'aisle' or ''"
+            fmcol: position
+
+        reason:
+            type: str
+            required: False
+            notes: "'leisure', 'business', 'crew' or ''"
+            fmcol: reason
+
+        is_public:
+            type: str
+            required: false
+            notes: "'Y/N' flat whether flight is visible to others"
+            fmcol: [...]
+
+        notes:
+            type: str
+            required: False
+            fmcol: comment

@@ -1,9 +1,5 @@
-import requests
-from requests.adapters import HTTPAdapter
-from requests.exceptions import (JSONDecodeError,
-                                 ConnectionError)
-from urllib3.util.retry import Retry
-from urllib3.exceptions import MaxRetryError
+from modules import logging, requests, urllib3
+
 from exec import (GeoNamesError,
                   GeoNamesStopError,
                   GeoNamesHTTPError,
@@ -12,7 +8,6 @@ from exec import (GeoNamesError,
                   GeoNamesUserAuthError,
                   GeoNamesConnectionError,
                   GeoNamesDateReturnError)
-import logging
 
 APP_NAME = 'fmsave'
 _module_logger_name = f'{APP_NAME}.{__name__}'
@@ -55,23 +50,23 @@ class GeoNames:
 
     def _call_geonames(self, url, params, callback, timeout=1, maxretries=3):
         self.logger.debug(f"Sending request to url: {url}\nparams: {params}")
-        retry_strategy = Retry(
+        retry_strategy = urllib3.util.retry.Retry(
             total=maxretries,
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["HEAD", "GET", "OPTIONS"]
         )
-        adapter = HTTPAdapter(max_retries=retry_strategy)
+        adapter = requests.adapters.HTTPAdapter(max_retries=retry_strategy)
         http = requests.Session()
         http.mount("https://", adapter)
         http.mount("http://", adapter)
 
         try:
             response = http.get(url, params=params, timeout=timeout)
-        except ConnectionError as err:
+        except requests.exceptions.ConnectionError as err:
             err_msg = f"GeoNames connection error:\n{err}"
             self.logger.error(err_msg)
             raise GeoNamesConnectionError(err_msg)
-        except MaxRetryError as err:
+        except urllib3.exceptions.MaxRetryError as err:
             err_msg = f"GeoNames max retry error:\n{err}"
             self.logger.error(err_msg)
             raise GeoNamesRetryError(err_msg)
@@ -80,7 +75,7 @@ class GeoNames:
         try:
             resp_json = response.json()
             self._raise_for_error(resp_json)
-        except JSONDecodeError as err:
+        except requests.exceptions.JSONDecodeError as err:
             err_msg = f"GeoNames HTTP error with status code {resp_status}" +\
                 f"\n{response.text}\nCaused by\n{err}"
             self.logger.error(err_msg)

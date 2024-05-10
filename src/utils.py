@@ -1,8 +1,4 @@
-from pathlib import Path
-import re
-from string import Formatter
-from datetime import timedelta
-import logging
+from modules import Formatter, logging, Path, re, td
 
 import constants
 
@@ -479,6 +475,7 @@ def strfdelta(tdelta, fmt='{D:02}d {H:02}h {M:02}m {S:02}s', inputtype='timedelt
         if field in desired_fields and field in constants:
             values[field], remainder = divmod(remainder, constants[field])
     return f.format(fmt, **values)
+
 
 def km_to_miles(km):
     return km * constants.KM_TO_MILES

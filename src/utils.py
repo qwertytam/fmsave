@@ -485,5 +485,6 @@ def strfdelta(tdelta, fmt="{D:02}d {H:02}h {M:02}m {S:02}s", inputtype="timedelt
             values[field], remainder = divmod(remainder, constants[field])
     return f.format(fmt, **values)
 
+
 def km_to_miles(km):
     return km * DistanceConversions.KM_TO_MILES.value

@@ -1,0 +1,22 @@
+icao_type,iata_type,model_name
+B222,BH2,Bell 212
+C172,,Cessna 172
+B190,BEH,Beechcraft 1900D
+B222,BH2,Bell 230
+B737,73G,Boeing 737-700
+B739,739,Boeing 737-900
+B744,744,Boeing 747-400ER
+B763,76W,Boeing 767-300ER
+B772,772,Boeing 777-200
+B772,772,Boeing 777-200ER
+CRJ2,CR2,Canadair Regional Jet 440
+CRJ7,CR7,Canadair Regional Jet 700
+C25B,CNJ,Cessna 525B CitationJet CJ3
+DH8A,DH1, De Havilland Canda DHC-8-102
+DH8B,DH2, De Havilland Canda DHC-8-202
+DH8c,DH3, De Havilland Canda DHC-8-311
+E140,ERD,Embraer ERJ 140
+E145,ER4,Embraer ERJ 145
+E190,E90,Embraer 190
+E35L,ER3,Embraer Legacy 650
+AS50,NDE,Eurocopter AS-350B2 Écureuil

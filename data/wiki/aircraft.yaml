@@ -1,0 +1,19 @@
+document:
+    version: 1
+    data_source: wiki
+    url: https://en.wikipedia.org/wiki/List_of_aircraft_type_designators
+    encoding: utf-8
+    seperator: \,
+    newrow: \r\n
+    headerrow: True
+
+aircraft:
+    columns:
+        icao_type:
+            type: str
+
+        iata_type:
+            type: str
+
+        model_name:
+            type: str

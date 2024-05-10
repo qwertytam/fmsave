@@ -45,7 +45,7 @@ from fmdownload import FMDownloader
 from datetime import datetime as dt
 from docopt import docopt
 import utils
-from constants import DEFAULT_CHROME_PATH, CHROME_OPTIONS
+import defaults
 
 # Set up logging
 import logging
@@ -161,9 +161,9 @@ if __name__ == '__main__':
 
     chrome_path = args['<chrome_path>']
     if chrome_path is None:
-        chrome_path = DEFAULT_CHROME_PATH
+        chrome_path = defaults.DEFAULT_CHROME_PATH
 
-    fd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
+    fd = FMDownloader(chrome_path=chrome_path, chrome_args=defaults.CHROME_OPTIONS)
 
     if dlhtml:
         fd.fm_un = args['<fm_un>']
@@ -200,7 +200,7 @@ if __name__ == '__main__':
         dbf = date_to_dt(dbf)
         daf = date_to_dt(daf)
 
-        fdd = FMDownloader(chrome_path=chrome_path, chrome_args=CHROME_OPTIONS)
+        fdd = FMDownloader(chrome_path=chrome_path, chrome_args=defaults.CHROME_OPTIONS)
         update_csv(fd, fdd, read_path, fread, fsave, dbf, daf)
 
     if upof:

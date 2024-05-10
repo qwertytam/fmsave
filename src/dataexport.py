@@ -1,6 +1,6 @@
 import data
 import utils
-from constants import STR_TYPE_LU
+import lookups
 import pandas as pd
 from thefuzz import process
 
@@ -24,7 +24,7 @@ def get_openflights_data(data_set, logger, exp_format='openflights', supplementa
         data_dict,
         key='type',
         values=['float', 'str'])
-    col_types = utils.replace_item(col_types, STR_TYPE_LU)
+    col_types = utils.replace_item(col_types, lookups.STR_TYPE_LU)
     
     of_data = data.get_openflights_data(data_set, names=col_names, dtype=col_types, supplemental=supplemental)
     return of_data

@@ -176,8 +176,6 @@ if __name__ == '__main__':
 
     if export:
         exp_format = args['<exp_format>']
-        if fsave is None:
-            fsave = 'exported_flights.csv'
         export_to(fd, exp_format, fread, fsave)
 
     if tocsv:

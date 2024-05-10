@@ -15,7 +15,7 @@ myflightpath:
             format: YYYY-MM-DD
             required: True
             notes: "Can be incomplete e.g., 2009"
-            fmcol: date_as_dt
+            fmcol: date_as_str
 
         flight_number:
             type: str

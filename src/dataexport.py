@@ -95,7 +95,7 @@ def fuzzy_match_of_airports(df, airport_data, check_col, data_col, find_col, log
         if sel_row is None:
             continue
         else:
-            df.loc[mmidx, check_col] = sel_row[data_col].values[0]
+            df.at[mmidx, check_col] = sel_row[data_col].values[0]
 
     return df
 
@@ -141,7 +141,7 @@ def match_openflights_airports(df, logger):
 
 
 def _get_list_tofuzz_on(df, to_find, to_find_col, to_match_col):
-    return df.loc[df[to_find_col] == to_find, to_match_col].values[0]
+    return df.at[df[to_find_col] == to_find, to_match_col].values[0]
 
 
 def _fuzzy_match_openflights(df, to_find_col, to_match_col, limit=1, threshold=90):
@@ -276,7 +276,7 @@ def match_openflights_airlines(df, logger):
         on=data_name_col,)
 
     for i, r in names_to_match.iterrows():
-        df_match.loc[df_match[df_name_col] == r[df_name_col], new_id_col] = r[new_id_col]
+        df_match.at[df_match[df_name_col] == r[df_name_col], new_id_col] = r[new_id_col]
 
     df_match = df_match.drop_duplicates(subset=[df_name_col])    
     inc_cols = [df_name_col, new_id_col]

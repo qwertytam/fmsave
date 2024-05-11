@@ -457,7 +457,7 @@ class FMDownloader:
             if sel_row is None:
                 continue
             else:
-                self.df.at[self.df[match_col] == find_str, check_col] = sel_row[check_col].values[0]
+                self.df.loc[self.df[match_col] == find_str, check_col] = sel_row[check_col].values[0]
 
 
     def _split_airline_col(self):
@@ -529,7 +529,7 @@ class FMDownloader:
             self.logger.debug(f"Getting url {loop_counter + 1} out of {num_urls}: {url}")
             self.driver.get(url)
             comment = self.driver.find_element(By.NAME, 'kommentar').text
-            self.df.at[self.df['detail_url'] == url, 'comment'] = comment
+            self.df.loc[self.df['detail_url'] == url, 'comment'] = comment
             loop_counter += 1
             utils.percent_complete(loop_counter, num_urls)
         print("\n")
@@ -742,7 +742,7 @@ class FMDownloader:
                         continue
                     else:
                         for col in update_cols:
-                            self.df.at[mmidx, col + leg] = sel_row[col].values[0]
+                            self.df.loc[mmidx, col + leg] = sel_row[col].values[0]
 
 
     def add_lat_lon(self, dates_before=None, dates_after=None):
@@ -904,7 +904,7 @@ class FMDownloader:
             
             # Now fill the rows with the date info we have for this leg
             if sum(fill_rows):
-                self.df.at[fill_rows, time_date_cols[leg]['date']] = \
+                self.df.loc[fill_rows, time_date_cols[leg]['date']] = \
                     pd.to_datetime(
                         self.df.loc[
                             fill_rows,

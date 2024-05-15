@@ -11,7 +11,7 @@ class FMSaveError(Exception):
 
 class GeoNamesError(FMSaveError):
     """
-    For GeoNames specific errors 
+    For GeoNames specific errors
     """
 
 
@@ -47,13 +47,13 @@ class GeoNamesTimeoutError(GeoNamesStopError):
 
 class GeoNamesConnectionError(GeoNamesStopError):
     """
-    For GeoNames urllib connection error 
+    For GeoNames urllib connection error
     """
 
 
 class GeoNamesCreditLimitError(GeoNamesStopError):
     """
-    For GeoNames exceeding daily (18), hourly (19) or weekly (20) limit 
+    For GeoNames exceeding daily (18), hourly (19) or weekly (20) limit
     """
 
 
@@ -61,4 +61,3 @@ class GeoNamesUserAuthError(GeoNamesStopError):
     """
     For GeoNames user autentication error
     """
-

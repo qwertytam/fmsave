@@ -10,37 +10,40 @@ import re
 import utils
 
 mpath = Path(__file__).parent.absolute()
-dpath = mpath.parent.absolute() / 'data'
+dpath = mpath.parent.absolute() / "data"
 
-APP_NAME = 'data'
-_module_logger_name = f'{APP_NAME}.{__name__}'
+APP_NAME = "data"
+_module_logger_name = f"{APP_NAME}.{__name__}"
 module_logger = logging.getLogger(_module_logger_name)
 module_logger.info(f"Module {_module_logger_name} logger initialized")
 
-OURAIRPORTS_DATA_FILEPATH = mpath.parent / 'data/ourairports/airports.csv'
+OURAIRPORTS_DATA_FILEPATH = mpath.parent / "data/ourairports/airports.csv"
 
 # add '.dat' to data set name
-OPENFLIGHTS_DATA_URL_BASE = 'https://raw.githubusercontent.com/jpatokal/openflights/master/data/'
-OPENFLIGHTS_DATA_FP_BASE = mpath.parent / 'data/openflights/'
-OPENFLIGHTS_DATA_SETS = ['airports', 'airlines', 'planes']
-OPENFLIGHTS_FILE_EXT = '.dat'
+OPENFLIGHTS_DATA_URL_BASE = (
+    "https://raw.githubusercontent.com/jpatokal/openflights/master/data/"
+)
+OPENFLIGHTS_DATA_FP_BASE = mpath.parent / "data/openflights/"
+OPENFLIGHTS_DATA_SETS = ["airports", "airlines", "planes"]
+OPENFLIGHTS_FILE_EXT = ".dat"
 
-WIKI_DATA_FP_BASE = mpath.parent / 'data/wiki/'
+WIKI_DATA_FP_BASE = mpath.parent / "data/wiki/"
+
 
 def get_yaml(fp, fn, logger=module_logger):
     """
     Read in yaml
-    
+
     Args:
         fp: Path to yaml file relative to 'data' folder
         fn: File name read in. Function will append '.yaml' extension
-    
+
     Returns:
         yaml
     """
-    fn = fn + '.yaml'
+    fn = fn + ".yaml"
     logger.debug(f"Getting yaml file: {dpath / fp / fn}")
-    with open(dpath / fp / fn,'rt') as f:
+    with open(dpath / fp / fn, "rt") as f:
         y = yaml.safe_load(f.read())
         f.close()
     return y
@@ -48,16 +51,17 @@ def get_yaml(fp, fn, logger=module_logger):
 
 def _write_data(fp, data, logger=module_logger):
     fp = Path(fp).resolve()
-    with open(fp, mode='wb') as f:
+    with open(fp, mode="wb") as f:
         f.write(data)
-    
+
     return fp
 
 
 def update_ourairport_data(
-    url='https://davidmegginson.github.io/ourairports-data/airports.csv',
+    url="https://davidmegginson.github.io/ourairports-data/airports.csv",
     fp=OURAIRPORTS_DATA_FILEPATH,
-    logger=module_logger):
+    logger=module_logger,
+):
     """
     Update airports data set, typically using OurAirports data
 
@@ -67,9 +71,9 @@ def update_ourairport_data(
         logger: logger to use
     """
     logger.debug(f"Updating airport data from {url}")
-    query_parameters = {'downloadformat': 'csv'}
+    query_parameters = {"downloadformat": "csv"}
     response = requests.get(url, params=query_parameters)
-    
+
     _ = _write_data(fp, response.content, logger)
     logger.debug("Completed update")
 
@@ -82,12 +86,12 @@ def update_openflights_data(logger=module_logger):
         logger: logger to use
     """
     logger.debug("Updating openflights data")
-    query_parameters = {'downloadformat': 'csv'}
-    
+    query_parameters = {"downloadformat": "csv"}
+
     for data_set in OPENFLIGHTS_DATA_SETS:
         url = OPENFLIGHTS_DATA_URL_BASE + data_set + OPENFLIGHTS_FILE_EXT
         response = requests.get(url, params=query_parameters)
-        
+
         fn = data_set + OPENFLIGHTS_FILE_EXT
         fp = _write_data(OPENFLIGHTS_DATA_FP_BASE / fn, response.content, logger)
         logger.debug(f"Completed url:{url} file:{fp}")
@@ -95,7 +99,7 @@ def update_openflights_data(logger=module_logger):
 
 
 def _dl_wikipedia_table(page, table_no, logger=module_logger):
-    html = wp.page(page).html() #.encode("UTF-8")
+    html = wp.page(page).html()  # .encode("UTF-8")
     df = pd.read_html(html)[table_no]
     return df
 
@@ -103,28 +107,32 @@ def _dl_wikipedia_table(page, table_no, logger=module_logger):
 def dl_aircraft_codes(logger=module_logger):
     """
     Download ICAO and IATA codes from wikipedia
-    
+
     Args:
         logger: Python logger to use
     """
-    fn = 'aircraft.csv'
+    fn = "aircraft.csv"
     fp = Path(WIKI_DATA_FP_BASE).resolve()
-    page = 'List_of_aircraft_type_designators'
+    page = "List_of_aircraft_type_designators"
     table_no = 0
 
     df = _dl_wikipedia_table(page, table_no, logger)
 
-    icao_col = df.filter(regex=re.compile(r'icao', re.IGNORECASE)).columns.to_list()[0]
-    iata_col = df.filter(regex=re.compile(r'iata', re.IGNORECASE)).columns.to_list()[0]
-    model_col = df.filter(regex=re.compile(r'model', re.IGNORECASE)).columns.to_list()[0]
+    icao_col = df.filter(regex=re.compile(r"icao", re.IGNORECASE)).columns.to_list()[0]
+    iata_col = df.filter(regex=re.compile(r"iata", re.IGNORECASE)).columns.to_list()[0]
+    model_col = df.filter(regex=re.compile(r"model", re.IGNORECASE)).columns.to_list()[
+        0
+    ]
 
-    df = df.rename(columns={
-        icao_col: 'icao_type',
-        iata_col: 'iata_type',
-        model_col: 'model_name',
-    })
+    df = df.rename(
+        columns={
+            icao_col: "icao_type",
+            iata_col: "iata_type",
+            model_col: "model_name",
+        }
+    )
 
-    df.to_csv(fp / fn, index=False, encoding='utf-8')
+    df.to_csv(fp / fn, index=False, encoding="utf-8")
     logger.info("Completed download of aircraft codes")
 
 
@@ -133,22 +141,25 @@ def _get_data(filepath, **kwargs):
     return pd.read_csv(filepath, **kwargs)
 
 
-def get_openflights_data(data_set=OPENFLIGHTS_DATA_SETS[0],
-                         header=None, supplemental=False, **kwargs):
+def get_openflights_data(
+    data_set=OPENFLIGHTS_DATA_SETS[0], header=None, supplemental=False, **kwargs
+):
     """
     Get open flights data from module data set
 
     Args:
         data_set: which data set to get e.g., airports, airlines, planes
         **kwargs: Keyword arguments passed to lower functions, notably 'pd.read_csv'
-    
+
     Returns:
         openflights data set as pandas data frame
     """
-    supp = '_supplemental' if supplemental else ''
+    supp = "_supplemental" if supplemental else ""
     fn = data_set + supp + OPENFLIGHTS_FILE_EXT
     fp = OPENFLIGHTS_DATA_FP_BASE / fn
-    return _get_data(fp, header=header, index_col=False, na_values=['\\N', '-'], **kwargs)
+    return _get_data(
+        fp, header=header, index_col=False, na_values=["\\N", "-"], **kwargs
+    )
 
 
 def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH):
@@ -159,17 +170,19 @@ def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH):
         airport_data_file: file path and name to csv file that contains
         required information. Typically using openflights information
         logger: logger to use
-    
+
     Returns:
         ourairport data set as pandas data frame
     """
     return _get_data(airport_data_file)
 
 
-def select_fuzzy_match(df, find_str, find_col, display_cols, col_widths, limit=10, logger=module_logger):
+def select_fuzzy_match(
+    df, find_str, find_col, display_cols, col_widths, limit=10, logger=module_logger
+):
     """
     Find and select fuzzy match
-    
+
     Uses fuzzy logic to find the closest matches, then asks user which match to
     use
 
@@ -180,25 +193,25 @@ def select_fuzzy_match(df, find_str, find_col, display_cols, col_widths, limit=1
         display_cols: Which columns to display when asking the user to select a match
         limit: How many closest matches to find and display
         logger: Logger to use
-    
+
     Return:
         Row in df the user selected; 'None' if the user selects none
     """
     logger.debug(f"Finding string '{find_str}` in column `{find_col}'")
     res = process.extract(find_str, df[find_col], limit=limit)
-    res = pd.DataFrame([(x[0], x[1]) for x in res], columns=['match', 'score'])
-    res = pd.merge(res, df[display_cols], left_on='match', right_on=find_col)
+    res = pd.DataFrame([(x[0], x[1]) for x in res], columns=["match", "score"])
+    res = pd.merge(res, df[display_cols], left_on="match", right_on=find_col)
 
     print(f"\nChoose match for '{find_str}':")
     utils.print_selection_table(res, display_cols, col_widths)
     sel = input("Which number or 'N' for none: ")
     logger.debug(f"User entered '{sel}'")
 
-    if sel.lower() == 'n':
+    if sel.lower() == "n":
         logger.debug("Keeping current data\n")
         sel_row = None
     else:
-        sel_row = df[df[find_col] == res.loc[int(sel)-1, 'match']]
+        sel_row = df[df[find_col] == res.loc[int(sel) - 1, "match"]]
         logger.debug(f"Chosen\n{sel_row}\n")
 
     return sel_row
@@ -207,10 +220,10 @@ def select_fuzzy_match(df, find_str, find_col, display_cols, col_widths, limit=1
 def fuzzy_merge(df_l, df_r, key_l, key_r, threshold=95, limit=10):
     """
     Merge two data frames based on fuzzy logic matching
-    
-    Uses fuzzy logic from the 'thefuzz' package to merge two data frames. 
+
+    Uses fuzzy logic from the 'thefuzz' package to merge two data frames.
     Merge closeness is based on the Levenshtein distance.
-    
+
     Args:
         df_l: Left data frame to join
         df_r: Right data frame to join
@@ -220,42 +233,44 @@ def fuzzy_merge(df_l, df_r, key_l, key_r, threshold=95, limit=10):
         a closer match
         limit: The number of matches that will get returned, which are then
         sorted in descending order
-        
+
     Returns:
-        The merged data frames with all matches above the threshold in the 
+        The merged data frames with all matches above the threshold in the
         'matches` column seperated by `', ''
     """
     sequences = df_r[key_r].tolist()
-    
-    matches = df_l[key_l].apply(lambda x: process.extract(x, sequences, limit=limit))
-    df_l['matches'] = matches
-    
-    matches_2 = df_l['matches'].apply(lambda x: ', '.join(i[0] for i in x if i[1] >= threshold))
-    df_l['matches'] = matches_2
-    
-    return df_l
-    
 
-def get_wiki_data(data_set='aircraft', header=0, **kwargs):
+    matches = df_l[key_l].apply(lambda x: process.extract(x, sequences, limit=limit))
+    df_l["matches"] = matches
+
+    matches_2 = df_l["matches"].apply(
+        lambda x: ", ".join(i[0] for i in x if i[1] >= threshold)
+    )
+    df_l["matches"] = matches_2
+
+    return df_l
+
+
+def get_wiki_data(data_set="aircraft", header=0, **kwargs):
     """
     Get open flights data from wiki
 
     Args:
         data_set: which data set to get e.g., aircraft
         **kwargs: Keyword arguments passed to lower functions, notably 'pd.read_csv'
-    
+
     Returns:
         wiki data set as panads data frame
     """
-    fn = data_set + '.csv'
+    fn = data_set + ".csv"
     fp = WIKI_DATA_FP_BASE / fn
     df = _get_data(fp, header=header, index_col=False, na_values="—", **kwargs)
-    
-    fn = data_set + '_supplemental' + '.csv'
+
+    fn = data_set + "_supplemental" + ".csv"
     fp = WIKI_DATA_FP_BASE / fn
     supp = _get_data(fp, header=header, index_col=False, na_values="—", **kwargs)
-    
+
     df = pd.concat([df, supp], ignore_index=True)
     df = df.drop_duplicates()
-    
+
     return df

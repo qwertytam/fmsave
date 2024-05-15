@@ -9,7 +9,6 @@ Usage:
   fmsave.py upof
   fmsave.py upwiki
   fmsave.py export <exp_format> <fread> [<fsave>]
-  fmsave.py updatefm <fread>
   fmsave.py -h | --help
 
 Options:
@@ -39,23 +38,23 @@ Arguments:
   save_path     Directory to save file(s) to
 """
 
+import logging
+import logging.config
+from pathlib import Path
+from docopt import docopt
+import yaml
+
 import logins
 from data import update_ourairport_data, update_openflights_data, dl_aircraft_codes
 from fmdownload import FMDownloader
-from datetime import datetime as dt
-from docopt import docopt
-import utils
 import defaults
+import utils
 
 # Set up logging
-import logging
-import logging.config
-import yaml
-from pathlib import Path
 
 mpath = Path(__file__).parent.absolute()
 
-with open(mpath / "logging.yaml", "rt") as f:
+with open(mpath / "logging.yaml", "rt", encoding="utf8") as f:
     config = yaml.safe_load(f.read())
     f.close()
 logging.config.dictConfig(config)
@@ -64,79 +63,137 @@ APP_NAME = "fmsave"
 logger = logging.getLogger(APP_NAME)
 
 
-def dl_html(fd, max_pages, save_path):
-    fd.fm_pw = logins.get_fm_pw()
-    fd.login()
-    fd.get_fm_pages(max_pages=max_pages)
-    fd.save_fm_pages(save_path=save_path)
+def dl_html(fmdownloader, max_pages_dl, file_save_path):
+    """
+    Download html pages from flightmemory.com
+
+    Args:
+        fmdownloader: FMDownloader class object
+        max_pages_dl: Maximum pages to download
+        file_save_path: Directory to save html pages to
+    """
+    fmdownloader.fm_pw = logins.get_fm_pw()
+    fmdownloader.login()
+    fmdownloader.get_fm_pages(max_pages=max_pages_dl)
+    fmdownloader.save_fm_pages(save_path=file_save_path)
 
 
-def export_to(fd, exp_format, fread, fsave):
-    fd.read_pandas_from_csv(read_fp=fread)
-    fd.export_to(exp_format, fsave)
+def export_to(fmdownloader, export_format, file_read, file_save):
+    """
+    Export fmsave csv to other website format
+
+    Args:
+        fmdownloader: FMDownloader class object
+        export_format: Format to export data to
+        file_read: fmsave csv to read
+        file_save: csv to save exported data to
+    """
+    fmdownloader.read_pandas_from_csv(read_fp=file_read)
+    fmdownloader.export_to(export_format, file_save)
 
 
-def html_to_csv(fd, gn_un, read_path, fsave):
-    fd.read_fm_pages(read_path=read_path)
-    fd.fm_pages_to_pandas()
-    fd.add_lat_lon()
-    fd.add_timezones(gnusername=gn_un)
-    fd.save_pandas_to_csv(save_fp=fsave)
+def html_to_csv(fmdownloader, geonames_un, file_read_path, file_save):
+    """
+    Convert flightmemory.com html pages to csv
+
+    Args:
+        fmdownloader: FMDownloader class object
+        geonames_un: Geonames user name
+        file_read_path: Path to read html files from
+        file_save: csv to save exported data to
+    """
+    fmdownloader.read_fm_pages(read_path=file_read_path)
+    fmdownloader.fm_pages_to_pandas()
+    fmdownloader.add_lat_lon()
+    fmdownloader.add_timezones(gnusername=geonames_un)
+    fmdownloader.save_pandas_to_csv(save_fp=file_save)
 
 
-def update_csv(fdu, fde, read_path, fread, fsave, dbf, daf):
+def update_csv(
+    fdu, fde, geonames_un, file_read_path, file_read, file_save, date_bf, date_af
+):
+    """
+    Update fmsave csv file
+
+    Args:
+        fdu: FMDownloader class object to update data from
+        fde: FMDownloader class object to update data to
+        geonames_un: Geonames user name
+        file_read_path: Path to read updated html files from
+        file_read: fmsave csv to read old data from
+        file_save: fmsave csv to save updated data to
+        date_bf: Update data before this date
+        date_af: Update data after this date
+    """
     # Get updated data html
-    fdu.read_fm_pages(read_path=read_path)
-    fdu.fm_pages_to_pandas(dbf, daf)
+    fdu.read_fm_pages(read_path=file_read_path)
+    fdu.fm_pages_to_pandas(date_bf, date_af)
     # utils.index_diagnostics(fdu.df['flight_index'], "fmsave fdu 1", logger=logger)
 
-    fdu.add_lat_lon(dbf, daf)
+    fdu.add_lat_lon(date_bf, date_af)
     # utils.index_diagnostics(fdu.df['flight_index'], "fmsave fdu 2", logger=logger)
 
     # Get existing data from csv
-    fde.read_pandas_from_csv(read_fp=fread)
+    fde.read_pandas_from_csv(read_fp=file_read)
     # utils.index_diagnostics(fde.df['flight_index'], "fmsave fde 1", logger=logger)
 
     # Delete unwanted rows
-    fde.remove_rows_by_date(dbf, daf)
-    utils.index_diagnostics(fde.df["flight_index"], "fmsave fde 2", logger=logger)
+    fde.remove_rows_by_date(date_bf, date_af)
 
     # Insert new flights
     fde.insert_updated_rows(fdu)
-    utils.index_diagnostics(fde.df["flight_index"], "fmsave fde 3", logger=logger)
-    fde.add_timezones(gnusername=gn_un)
-    utils.index_diagnostics(fde.df["flight_index"], "fmsave fde 4", logger=logger)
+    fde.add_timezones(gnusername=geonames_un)
 
     #  Save to csv
-    fde.save_pandas_to_csv(save_fp=fsave)
+    fde.save_pandas_to_csv(save_fp=file_save)
 
 
-def update_tz(fd, gn_un, fread, fsave):
-    fd.read_pandas_from_csv(read_fp=fread)
-    fd.add_timezones(gnusername=gn_un)
-    fd.save_pandas_to_csv(save_fp=fsave)
+def update_tz(fmdownloader, geonames_un, file_read, file_save):
+    """
+    Update missing timezone data
+
+    Args:
+        fmdownloader: FMDownloader class object
+        geonames_un: Geonames user name
+        file_read: fmsave csv to read
+        file_save: csv to save updated data to
+    """
+    fmdownloader.read_pandas_from_csv(read_fp=file_read)
+    fmdownloader.add_timezones(gnusername=geonames_un)
+    fmdownloader.save_pandas_to_csv(save_fp=file_save)
 
 
-def validate_dist_times(fd, fread, fsave):
-    fd.read_pandas_from_csv(read_fp=fread)
-    fd.validate_distance_times()
-    fd.save_pandas_to_csv(save_fp=fsave)
+def validate_dist_times(fmdownloader, file_read, file_save):
+    """
+    Validate distance and times
+
+    Args:
+        fmdownloader: FMDownloader class object
+        file_read: fmsave csv to read
+        file_save: csv to save validated data to
+    """
+    fmdownloader.read_pandas_from_csv(read_fp=file_read)
+    fmdownloader.validate_distance_times()
+    fmdownloader.save_pandas_to_csv(save_fp=file_save)
 
 
-def update_fm_data(fd, fread):
-    fd.read_pandas_from_csv(read_fp=fread)
-    fd.update_fm_data()
+def update_fm_data(fmdownloader, file_read):
+    """
+    Updating user flightmemory.com data
+
+    Args:
+        fmdownloader: FMDownloader class object
+        file_read: fmsave csv to read
+    """
+    fmdownloader.read_pandas_from_csv(read_fp=file_read)
+    fmdownloader.update_fm_data()
 
 
 def update_wiki():
+    """
+    Updated wikipedia data, namely IATA and ICAO aircraft type codes
+    """
     dl_aircraft_codes(logger)
-
-
-def date_to_dt(ddmmyyyy):
-    if ddmmyyyy:
-        ddmmyyyy = dt.strptime(ddmmyyyy, "%d-%m-%Y")
-
-    return ddmmyyyy
 
 
 if __name__ == "__main__":
@@ -149,7 +206,6 @@ if __name__ == "__main__":
     upcsv = args["upcsv"]
     upof = args["upof"]
     uptz = args["uptz"]
-    updatefm = args["updatefm"]
     validate = args["validate"]
     upwiki = args["upwiki"]
 
@@ -159,11 +215,11 @@ if __name__ == "__main__":
     gn_un = args["<gn_un>"]
     read_path = args["<read_path>"]
 
-    chrome_path = args["<chrome_path>"]
-    if chrome_path is None:
-        chrome_path = defaults.DEFAULT_CHROME_PATH
+    CHROME_PATH = args["<chrome_path>"]
+    if CHROME_PATH is None:
+        CHROME_PATH = defaults.DEFAULT_CHROME_PATH
 
-    fd = FMDownloader(chrome_path=chrome_path, chrome_args=defaults.CHROME_OPTIONS)
+    fd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
 
     if dlhtml:
         fd.fm_un = args["<fm_un>"]
@@ -197,11 +253,11 @@ if __name__ == "__main__":
         dbf = args["--before"]
         daf = args["--after"]
 
-        dbf = date_to_dt(dbf)
-        daf = date_to_dt(daf)
+        dbf = utils.date_to_dt(dbf)
+        daf = utils.date_to_dt(daf)
 
-        fdd = FMDownloader(chrome_path=chrome_path, chrome_args=defaults.CHROME_OPTIONS)
-        update_csv(fd, fdd, read_path, fread, fsave, dbf, daf)
+        fdd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
+        update_csv(fd, fdd, gn_un, read_path, fread, fsave, dbf, daf)
 
     if upof:
         update_openflights_data(logger=logger)
@@ -215,9 +271,6 @@ if __name__ == "__main__":
         if fsave is None:
             fsave = fread
         validate_dist_times(fd, fread, fsave)
-
-    if updatefm:
-        update_fm_data(fd, fread)
 
     if upwiki:
         update_wiki()

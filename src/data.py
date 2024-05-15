@@ -1,11 +1,14 @@
-from pathlib import Path
-import requests
+"""Providing data manipulation functionality"""
+
 import logging
+import re
+from pathlib import Path
+import io
+import requests
 from thefuzz import process
 import pandas as pd
 import yaml
 import wikipedia as wp
-import re
 
 import utils
 
@@ -15,7 +18,7 @@ dpath = mpath.parent.absolute() / "data"
 APP_NAME = "data"
 _module_logger_name = f"{APP_NAME}.{__name__}"
 module_logger = logging.getLogger(_module_logger_name)
-module_logger.info(f"Module {_module_logger_name} logger initialized")
+module_logger.info("Module %s logger initialized", _module_logger_name)
 
 OURAIRPORTS_DATA_FILEPATH = mpath.parent / "data/ourairports/airports.csv"
 
@@ -42,8 +45,8 @@ def get_yaml(fp, fn, logger=module_logger):
         yaml
     """
     fn = fn + ".yaml"
-    logger.debug(f"Getting yaml file: {dpath / fp / fn}")
-    with open(dpath / fp / fn, "rt") as f:
+    logger.debug("Getting yaml file: %s", dpath / fp / fn)
+    with open(dpath / fp / fn, "rt", encoding="utf-8") as f:
         y = yaml.safe_load(f.read())
         f.close()
     return y
@@ -51,6 +54,7 @@ def get_yaml(fp, fn, logger=module_logger):
 
 def _write_data(fp, data, logger=module_logger):
     fp = Path(fp).resolve()
+    logger.debug("Writing data to: %s", fp)
     with open(fp, mode="wb") as f:
         f.write(data)
 
@@ -60,6 +64,7 @@ def _write_data(fp, data, logger=module_logger):
 def update_ourairport_data(
     url="https://davidmegginson.github.io/ourairports-data/airports.csv",
     fp=OURAIRPORTS_DATA_FILEPATH,
+    timeout=10,
     logger=module_logger,
 ):
     """
@@ -68,21 +73,23 @@ def update_ourairport_data(
     Args:
         url: URL to get data from
         fp: File path and name to save the data
+        timeout: Timeout in seconds
         logger: logger to use
     """
-    logger.debug(f"Updating airport data from {url}")
+    logger.debug("Updating airport data from %s", url)
     query_parameters = {"downloadformat": "csv"}
-    response = requests.get(url, params=query_parameters)
+    response = requests.get(url, params=query_parameters, timeout=timeout)
 
     _ = _write_data(fp, response.content, logger)
     logger.debug("Completed update")
 
 
-def update_openflights_data(logger=module_logger):
+def update_openflights_data(timeout=10, logger=module_logger):
     """
     Update openflights data set
 
     Args:
+        timeout: Timeout in seconds
         logger: logger to use
     """
     logger.debug("Updating openflights data")
@@ -90,17 +97,19 @@ def update_openflights_data(logger=module_logger):
 
     for data_set in OPENFLIGHTS_DATA_SETS:
         url = OPENFLIGHTS_DATA_URL_BASE + data_set + OPENFLIGHTS_FILE_EXT
-        response = requests.get(url, params=query_parameters)
+        response = requests.get(url, params=query_parameters, timeout=timeout)
 
         fn = data_set + OPENFLIGHTS_FILE_EXT
         fp = _write_data(OPENFLIGHTS_DATA_FP_BASE / fn, response.content, logger)
-        logger.debug(f"Completed url:{url} file:{fp}")
+        logger.debug("Completed url:%s file: %s", url, fp)
     logger.info("Completed update")
 
 
 def _dl_wikipedia_table(page, table_no, logger=module_logger):
+    logger.debug("Downloading wiki table number %s from %s", table_no, page)
     html = wp.page(page).html()  # .encode("UTF-8")
-    df = pd.read_html(html)[table_no]
+    sio = io.StringIO(html)
+    df = pd.read_html(sio)[table_no]
     return df
 
 
@@ -197,7 +206,7 @@ def select_fuzzy_match(
     Return:
         Row in df the user selected; 'None' if the user selects none
     """
-    logger.debug(f"Finding string '{find_str}` in column `{find_col}'")
+    logger.debug("Finding string '%s' in column '%s'", find_str, find_col)
     res = process.extract(find_str, df[find_col], limit=limit)
     res = pd.DataFrame([(x[0], x[1]) for x in res], columns=["match", "score"])
     res = pd.merge(res, df[display_cols], left_on="match", right_on=find_col)
@@ -212,7 +221,7 @@ def select_fuzzy_match(
         sel_row = None
     else:
         sel_row = df[df[find_col] == res.loc[int(sel) - 1, "match"]]
-        logger.debug(f"Chosen\n{sel_row}\n")
+        logger.debug("Chosen\n%s\n", sel_row)
 
     return sel_row
 

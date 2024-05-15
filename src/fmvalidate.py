@@ -1,3 +1,5 @@
+"""Module providing time and distance validation functionality"""
+
 from geopy import distance as dist
 import pandas as pd
 

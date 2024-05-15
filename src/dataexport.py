@@ -1,8 +1,11 @@
+"""Providing data export functionality"""
+
+import pandas as pd
+from thefuzz import process
+
 import data
 import utils
 import lookups
-import pandas as pd
-from thefuzz import process
 
 
 def get_openflights_data(

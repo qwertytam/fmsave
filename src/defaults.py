@@ -1,3 +1,5 @@
+"""Module to hold default configuation settings."""
+
 # Selenium chrome web driver
 DEFAULT_CHROME_PATH = "/Applications/Chromium.app/Contents/MacOS/Chromium"
 

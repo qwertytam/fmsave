@@ -1,3 +1,5 @@
+"""Module for holding name conversions"""
+
 FMPLANELU = {
     "Beech 1900D": "Beechcraft 1900D",
     "Bell Helicopters 230": "Bell 230",

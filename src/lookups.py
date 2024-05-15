@@ -1,3 +1,5 @@
+"""Holding dictionary based lookup conversions from flightmemory.com to other formats"""
+
 from datetime import datetime as dt
 from datetime import timedelta as td
 

@@ -1,8 +1,11 @@
+"""Utility helper functions"""
+
+import logging
+import sys
 from pathlib import Path
 import re
 from string import Formatter
-from datetime import timedelta
-import logging
+from datetime import datetime as dt
 
 from constants import DistanceConversions
 
@@ -11,7 +14,7 @@ mpath = Path(__file__).parent.absolute()
 APP_NAME = "utils"
 _module_logger_name = f"{APP_NAME}.{__name__}"
 module_logger = logging.getLogger(_module_logger_name)
-module_logger.info(f"Module {_module_logger_name} logger initialized")
+module_logger.debug("Module %s logger initialized", _module_logger_name)
 
 
 def check_create_path(dir_path, logger=module_logger):
@@ -38,16 +41,16 @@ def check_create_path(dir_path, logger=module_logger):
 
     if fn_search is None:
         # Did not find file in provided path
-        logger.info(f"Did not find file name for: {dir_path}")
+        logger.info("Did not find file name for: %s", dir_path)
     else:
         fp = fp.parents[0]
-        logger.info(f"Found file name for {dir_path} going with parents")
+        logger.info("Found file name for %s going with parents", dir_path)
 
-    logger.info(f"Checking and creating path for {fp}")
+    logger.info("Checking and creating path for %s", fp)
     Path(fp).mkdir(parents=True, exist_ok=True)
 
 
-def list_depth(l, n=0):
+def list_depth(l):
     """
     Find depth of nested list.
 
@@ -56,7 +59,6 @@ def list_depth(l, n=0):
 
     Args:
         l: List to search
-        n: Current list depth
 
     Returns:
         List depth as an integer
@@ -108,8 +110,8 @@ def get_bottom_lists(l, max_depth=1):
     """
     res = []
     if isinstance(l, list) and list_depth(l) > max_depth:
-        for p in range(0, len(l)):
-            gbl = get_bottom_lists(l[p])
+        for i, _ in enumerate(l):
+            gbl = get_bottom_lists(l[i])
             if list_depth(gbl) <= max_depth:
                 res.append(gbl)
             else:
@@ -260,8 +262,6 @@ def get_parents_with_key_value(d, key, value, regex=False):
         List of parents with matching (keys, values) as a tuple e.g.,
         '[ppp1, [pp1, [p1,  (k, v)], [p2,  (k, v)], [p3,  (k, v)]]]'.
     """
-    import sys
-
     res = []
     for k, v in d.items():
         if isinstance(v, dict):
@@ -331,12 +331,25 @@ def get_parents_list_with_key_values(d, key, values):
 
 
 def filterbyvalue(seq, value):
+    """
+    Filter sequence by value
+    """
     for el in seq:
         if el.attribute == value:
             yield el
 
 
 def find_keys_containing(d, pat):
+    """
+    Find keys in dictionary containing given pattern
+
+    Args:
+        d: Dictionary to search through
+        pat: Pattern to find
+
+    Returns:
+        Dictionary with keys that contain the pattern
+    """
     res = {pat: {v: k for k, v in d.items() if pat in k}}
     return res
 
@@ -370,8 +383,6 @@ def percent_complete(step, total_steps, bar_width=60, title="", print_perc=True)
     Author is StackOverFlow user WinEunuuchs2Unix
     ref: https://stackoverflow.com/questions/3002085/how-to-print-out-status-bar-and-percentage
     """
-    import sys
-
     # UTF-8 left blocks: 1, 1/8, 1/4, 3/8, 1/2, 5/8, 3/4, 7/8
     utf_8s = ["█", "▏", "▎", "▍", "▌", "▋", "▊", "█"]
     perc = 100 * float(step) / float(total_steps)
@@ -380,28 +391,28 @@ def percent_complete(step, total_steps, bar_width=60, title="", print_perc=True)
     full_ticks = num_ticks / 8  # Number of full blocks
     part_ticks = num_ticks % 8  # Size of partial block (array index)
 
-    disp = bar = ""  # Blank out variables
-    bar += utf_8s[0] * int(full_ticks)  # Add full blocks into Progress Bar
+    disp = disp_bar = ""  # Blank out variables
+    disp_bar += utf_8s[0] * int(full_ticks)  # Add full blocks into Progress Bar
 
     # If part_ticks is zero, then no partial block, else append part char
     if part_ticks > 0:
-        bar += utf_8s[part_ticks]
+        disp_bar += utf_8s[part_ticks]
 
     # Pad Progress Bar with fill character
-    bar += "▒" * int((max_ticks / 8 - float(num_ticks) / 8.0))
+    disp_bar += "▒" * int((max_ticks / 8 - float(num_ticks) / 8.0))
 
     if len(title) > 0:
         disp = title + ": "  # Optional title to progress display
 
     # Print progress bar in green: https://stackoverflow.com/a/21786287/6929343
     disp += "\x1b[0;32m"  # Color Green
-    disp += bar  # Progress bar to progress display
+    disp += disp_bar  # Progress bar to progress display
     disp += "\x1b[0m"  # Color Reset
     if print_perc:
         # If requested, append percentage complete to progress display
         if perc > 100.0:
             perc = 100.0  # Fix "100.04 %" rounding error
-        disp += " {:6.2f}".format(perc) + " %"
+        disp += f" {perc:6.2f} %"
         disp += f"  {step:,} of {total_steps:,}"
 
     # Output to terminal repetitively over the same line using '\r'.
@@ -410,8 +421,16 @@ def percent_complete(step, total_steps, bar_width=60, title="", print_perc=True)
 
 
 def print_selection_table(df, display_cols, col_widths):
+    """
+    Print columns in dataframe using given widths
+
+    Args:
+        df: Dataframe to print columns from
+        display_cols: Columns to print from df
+        col_widths: Character widths to use for printed columns
+    """
     # Header row
-    msg = f" #:"
+    msg = " #:"
     for idx, col in enumerate(display_cols):
         msg += f"  {col:<{col_widths[idx]}}"
     print(msg)
@@ -427,12 +446,30 @@ def print_selection_table(df, display_cols, col_widths):
         print(f"{idx+1:>2}:{msg}")
 
 
-def swap_keys_values(dictionary):
-    return dict((v, k) for k, v in dictionary.items())
+def swap_keys_values(d):
+    """
+    Swaps keys with values in given dictionary
+
+    Args:
+        d: Dictionary to swap keys and values in
+
+    Returns:
+        Dictionary with swaped keys and values
+    """
+    return dict((v, k) for k, v in d.items())
 
 
-def get_keys(dictionary):
-    return [k for k, v in dictionary.items()]
+def get_keys(d):
+    """
+    Get all keys from given dictionary
+
+    Args:
+        d: Dictionary to get keys from
+
+    Returns:
+        List of all keys from d
+    """
+    return [k for k, v in d.items()]
 
 
 def strfdelta(tdelta, fmt="{D:02}d {H:02}h {M:02}m {S:02}s", inputtype="timedelta"):
@@ -487,4 +524,29 @@ def strfdelta(tdelta, fmt="{D:02}d {H:02}h {M:02}m {S:02}s", inputtype="timedelt
 
 
 def km_to_miles(km):
+    """
+    Convert kilometres to statute miles
+
+    Args:
+        km: Kilometres to convert
+
+    Returns:
+        km converted to miles
+    """
     return km * DistanceConversions.KM_TO_MILES.value
+
+
+def date_to_dt(ddmmyyyy):
+    """
+    Convert string to datetime
+
+    Args:
+        ddmmyyyy: Date as string in format 'dd-mm-yyyy'
+
+    Returns:
+        ddmmyyyy as datetime
+    """
+    if ddmmyyyy:
+        ddmmyyyy = dt.strptime(ddmmyyyy, "%d-%m-%Y")
+
+    return ddmmyyyy

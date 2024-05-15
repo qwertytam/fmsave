@@ -1,5 +1,14 @@
+"""Main module to hold functions to download and maniuplate flightmemory data"""
+
+from datetime import datetime as dt
 import io
+import logging
+import math
+from pathlib import Path
+import re
 import sys
+
+
 from bs4 import BeautifulSoup as bs
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
@@ -7,33 +16,30 @@ from selenium.webdriver.support.select import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-import math
-import re
 import numpy as np
 import pandas as pd
-from pathlib import Path
+
 from geonames import GeoNames
-from geonames import GeoNamesDateReturnError, GeoNamesStopError
+from geonames import GeoNamesDateReturnError
 from geonames import EMPTY_TZ_DICT
-from datetime import datetime as dt
-import logging
+from exec import GeoNamesStopError
 
 import logins
 import data
 import utils
 import dataexport
 import fmvalidate
-
-from constants import DistanceConversions
 import lookups
-import fmplanelu
 
 mpath = Path(__file__).parent.absolute()
 
 APP_NAME = "fmsave"
 _module_logger_name = f"{APP_NAME}.{__name__}"
 module_logger = logging.getLogger(_module_logger_name)
-module_logger.info(f"Module {_module_logger_name} logger initialized")
+module_logger.info("Module %s logger initialized", _module_logger_name)
+
+WDSCRIPT_OUTER_HTML = "return document.documentElement.outerHTML"
+FM_BASE_URL = "https://www.flightmemory.com/signin/"
 
 
 def _get_str_for_pd(page):
@@ -57,6 +63,7 @@ def _check_count(current_run_status, count, limit):
 
 
 class FMDownloader:
+    """Main class to use instances to download and maniuplate fm data"""
 
     def __init__(
         self,
@@ -71,7 +78,7 @@ class FMDownloader:
         _class_name = "FMDownloader"
         _class_logger_name = f"{_module_logger_name}.{_class_name}"
         self.logger = logging.getLogger(_class_logger_name)
-        self.logger.debug(f"Class {_class_logger_name} initialized")
+        self.logger.debug("Class %s initialized", _class_logger_name)
 
         # Set options to use Chromium with Selenium
         self.options = webdriver.ChromeOptions()
@@ -150,7 +157,6 @@ class FMDownloader:
         return len(select.options)
 
     def _get_outer_html(self):
-        WDSCRIPT_OUTER_HTML = "return document.documentElement.outerHTML"
         self.pages.append(self.driver.execute_script(WDSCRIPT_OUTER_HTML))
 
     def _get_next_page(self, last_page_timeout=10):
@@ -173,7 +179,7 @@ class FMDownloader:
         loop_counter = 0
         pages_len = len(self.pages)
         num_pages_on_fm = self._get_number_of_pages()
-        self.logger.info(f"There are {num_pages_on_fm} pages to download from FM")
+        self.logger.info("There are %s pages to download from FM", num_pages_on_fm)
 
         if max_pages is None:
             max_pages = num_pages_on_fm
@@ -183,28 +189,30 @@ class FMDownloader:
         while run:
             loop_counter += 1
             run = _check_count(run, loop_counter, max_pages)
-            self.logger.debug(f"Getting page number: {loop_counter}")
+            self.logger.debug("Getting page number: %s", loop_counter)
             self._get_outer_html()
 
             if loop_counter < max_pages:
                 try:
                     self._get_next_page(last_page_timeout)
                     self.logger.debug(
-                        f"Found page for next loop at counter {loop_counter}"
+                        "Found page for next loop at counter %s", loop_counter
                     )
 
                 except TimeoutException:
-                    self.logger.info(f"TimeoutException; ending at loop {loop_counter}")
+                    self.logger.info(
+                        "TimeoutException; ending at loop %s", loop_counter
+                    )
                     break
 
             utils.percent_complete(loop_counter, max_pages)
 
         print("\n")
-        self.logger.debug(f"Exited loop as hit max for at {loop_counter}")
+        self.logger.debug("Exited loop as hit max for at %s", loop_counter)
 
         found_pages = len(self.pages) - pages_len
         pages_len = len(self.pages)
-        self.logger.info(f"Found {found_pages} pages and read {pages_len} in")
+        self.logger.info("Found %s pages and read %s in", found_pages, pages_len)
 
     def save_fm_pages(self, save_path, prefix="flightmemory", fext="html"):
         """
@@ -217,14 +225,17 @@ class FMDownloader:
         """
         utils.check_create_path(save_path)
 
+        total_pages = 0
         for page_num, page in enumerate(self.pages):
             fn = f"{prefix}{page_num+1:04d}.{fext}"
             fp = Path(save_path, fn)
-            self.logger.debug(f"Saving page number {page_num + 1} as {fp}")
-            with open(fp, "w") as f:
+            self.logger.debug("Saving page number %s as %s", page_num + 1, fp)
+            with open(fp, "w", encoding="utf8") as f:
                 f.write(page)
 
-        self.logger.info(f"Saved {page_num + 1} pages to {save_path}")
+            total_pages += 1
+
+        self.logger.info("Saved %s pages to %s", total_pages, save_path)
 
     def read_fm_pages(self, read_path, fext="html"):
         """
@@ -236,21 +247,21 @@ class FMDownloader:
             read_path: Path to saved html files
             fext: File extension to filter on
         """
-        self.logger.debug(f"Scanning path '{read_path}' for '*.{fext}'")
+        self.logger.debug("Scanning path '%s' for '*.%s'", read_path, fext)
         page_files = list(Path(read_path).glob(f"*.{fext}"))
 
         if len(page_files) == 0:
             raise ValueError("No '*.{fext}' files found to read in")
 
-        self.logger.info(f"Found {len(page_files)} '*.{fext}' files")
+        self.logger.info("Found %s '*.%s' files", len(page_files), fext)
 
         for page_num, page_file in enumerate(page_files):
-            self.logger.debug(f"Reading file {page_num+1}: {page_file}")
+            self.logger.debug("Reading file %s: %s", page_num + 1, page_file)
 
             with open(page_file, "r", encoding="utf-8") as f:
                 self.pages.append(f.read())
 
-        self.logger.info(f"Have read in {len(self.pages)} pages")
+        self.logger.info("Have read in %s pages", len(self.pages))
 
     def _split_date_col(self):
         # Column has the following formats
@@ -376,14 +387,30 @@ class FMDownloader:
         self.df.loc[move_col_rows, "class"] = ""
 
     def _split_airplane_col(self):
-        pat = "(?>\\s|^)("  # start of string
-        pat += "(?>N\\w{3,5})"  # for USA registrations
-        pat += "|(?>(?>HI|HL|JA|JR|UK|UR|YV)\\w{2,5})"  # for registrations with two letter prefix and four digit suffix, no dash
-        pat += "|(?>(?>2|B|C|D|F|G|I|M|P|U|Z)-\\w{2,5})"  # for registrations with single letter prefix
-        pat += "|(?>(?>3|4|5|6|7|8|9)[A-Z]-\\w{2,5})"  # for registrations with a prefix starting with a number then a letter
-        pat += "|(?>(?>C|D|E|H|J|L|O|P|R|S|T|U|V|X|Y|Z)\\w-\\w{2,5})"  # for registrations with a prefix starting with a letter from C onwards, then a number or a letter
-        pat += "|(?>A(?>[P2-8])-\\w{2,5})"  # for registrations with a prefix starting with 'A' then a number or a letter
-        pat += ")(?>\\s|$)"  # end of string
+        # start of string
+        pat = "(?>\\s|^)("
+
+        # for USA registrations
+        pat += "(?>N\\w{3,5})"
+
+        # for registrations with two letter prefix and four digit suffix, no dash
+        pat += "|(?>(?>HI|HL|JA|JR|UK|UR|YV)\\w{2,5})"
+
+        # for registrations with single letter prefix
+        pat += "|(?>(?>2|B|C|D|F|G|I|M|P|U|Z)-\\w{2,5})"
+
+        # for registrations with  a prefix starting with a number then a letter
+        pat += "|(?>(?>3|4|5|6|7|8|9)[A-Z]-\\w{2,5})"
+
+        # for  registrations with a prefix starting with a letter from
+        # C onwards, then a number or a letter
+        pat += "|(?>(?>C|D|E|H|J|L|O|P|R|S|T|U|V|X|Y|Z)\\w-\\w{2,5})"
+
+        # for registrations with a prefix starting with 'A' then a number or a letter
+        pat += "|(?>A(?>[P2-8])-\\w{2,5})"
+
+        # end of string
+        pat += ")(?>\\s|$)"
 
         expected_cols = 3
         str_split = self.df["airplane_reg_name"].str.split(
@@ -476,7 +503,7 @@ class FMDownloader:
     def _dates_to_dt(self):
         time_cols = utils.get_parents_for_keys_with_value(self.fms_data_dict, "time")
         self.logger.debug(
-            f"\n{self.df.loc[0, ['date', 'time_dep', 'time_arr', 'date_offset']]}"
+            "\n%s", self.df.loc[0, ["date", "time_dep", "time_arr", "date_offset"]]
         )
 
         for col in time_cols:
@@ -513,6 +540,12 @@ class FMDownloader:
         )
 
     def get_comments(self, filter_col=None):
+        """
+        Get comments for flights from flightmemory.com
+
+        Args:
+            filter_col: Column to filter flights with comments on; typically 'comments'
+        """
         if not self.logged_in:
             self.logger.info(
                 "Found comments to download; need to login to flightmemory.com"
@@ -527,11 +560,11 @@ class FMDownloader:
         filter_cols = [filter_col, "comments"] if filter_col else ["comments"]
         urls = self.df.loc[self.df[filter_cols].all(axis=1), "detail_url"]
         num_urls = len(urls)
-        self.logger.debug(f"Have {num_urls} urls to get")
+        self.logger.debug("Have %s urls to get", num_urls)
         utils.percent_complete(loop_counter, num_urls)
         for url in urls:
             self.logger.debug(
-                f"Getting url {loop_counter + 1} out of {num_urls}: {url}"
+                "Getting url %s out of %s: %s", loop_counter + 1, num_urls, url
             )
             self.driver.get(url)
             comment = self.driver.find_element(By.NAME, "kommentar").text
@@ -542,7 +575,12 @@ class FMDownloader:
         self.df["comment"] = self.df["comment"].str.replace(r"\n", "", regex=True)
 
     def links_from_options(self, table):
-        BASE_URL = "https://www.flightmemory.com/signin/"
+        """
+        Get link for flight detail from 'option' table element
+
+        Args:
+            table: HTML table to parse
+        """
         links = []
         for tr in table.findAll("tr"):
             trs = tr.findAll("td")
@@ -550,7 +588,7 @@ class FMDownloader:
                 link = trs[-1].find_all(
                     lambda t: t.name == "option" and re.compile("edit")
                 )[1]
-                links.append(BASE_URL + link.get("value"))
+                links.append(FM_BASE_URL + link.get("value"))
 
         return links
 
@@ -576,8 +614,10 @@ class FMDownloader:
             dates_before: Only get comments for flights before this date; as datetime
             dates_after: Only get comments for flights before this date; as datetime
         """
-        for idx, page in enumerate(self.pages):
-            self.logger.debug(f"Reading page {idx+1} to self.df")
+        total_pages = 0
+        for _, page in enumerate(self.pages):
+            total_pages += 1
+            self.logger.debug("Reading page %s to self.df", total_pages)
             flight_tbl = _get_str_for_pd(page)
             df = pd.read_html(
                 io.StringIO(str(flight_tbl)),
@@ -587,8 +627,9 @@ class FMDownloader:
             self.df = pd.concat([self.df, df], ignore_index=True)
 
         self.logger.info(
-            f"Finished reading in {idx+1} pages; "
-            f"read in {len(self.df.index):,} flights"
+            "Finished reading in %s pages;  read in %s flights",
+            total_pages,
+            len(self.df.index),
         )
 
         self.df.rename(
@@ -623,7 +664,7 @@ class FMDownloader:
 
         comments = self.df.loc[self.df["date_filter"], "comments"]
         self.df["comment"] = ""
-        self.logger.info(f"We have {comments.sum()} notes")
+        self.logger.info("We have %s notes", comments.sum())
         if comments.sum() > 0:
             self.get_comments("date_filter")
 
@@ -675,16 +716,15 @@ class FMDownloader:
             )[0]
             leg_data[leg_key] = data_leg_keys[leg]
 
-        for leg in leg_data:
+        for leg in leg_data.items():
             narows = self.df[leg_data[leg]["lat"]].isna()
 
             # Taking only last four characters as added 'K' to denote
             # using keyword column
             idents = self.df.loc[narows, leg].apply(lambda x: x[-4:]).to_list()
-            self.logger.debug(f"Finding for {leg} {leg_data[leg]}:\n{idents}")
+            self.logger.debug("Finding for %s %s:\n%s", leg, leg_data[leg], idents)
 
             res_rows = airport_data["keywords"].str.contains("|".join(idents), na=False)
-            res = airport_data.loc[res_rows, :]
 
             to_cols = [
                 leg_data[leg]["name"],
@@ -711,7 +751,7 @@ class FMDownloader:
         if filter_col:
             row_filter = row_filter & self.df[filter_col]
         mismatch_rows = self.df.loc[row_filter, :]
-        self.logger.debug(f"There are {len(mismatch_rows)} mismatches")
+        self.logger.debug("There are %s mismatches", len(mismatch_rows))
 
         df = airport_data
         df = df.rename(columns={"iata_code": "iata"})
@@ -824,7 +864,7 @@ class FMDownloader:
 
         self.df = self.df.replace(r"^\s*$", np.nan, regex=True)
         self.logger.debug(
-            f"Have added airport lat and lon data now have:\n{self.df.dtypes}"
+            "Have added airport lat and lon data now have:\n%s", self.df.dtypes
         )
 
         # If any of the latitude columns are na, then lets try using
@@ -847,7 +887,7 @@ class FMDownloader:
         for key in EMPTY_TZ_DICT:
             if key in row:
                 tz[key] = row[key]
-        self.logger.debug(f"tz now:\n{tz}\n")
+        self.logger.debug("tz now:\n%s\n", tz)
         return tz
 
     def _add_tz(self, row, gnusername):
@@ -863,37 +903,42 @@ class FMDownloader:
         for leg in legs:
             leg_data[leg] = utils.find_keys_containing(data_keys, leg)[leg]
 
-        self.logger.debug(f"leg_data is:\n{leg_data}")
+        self.logger.debug("leg_data is:\n%s", leg_data)
         valid_date_pat = re.compile("\\d{4}-\\d{2}-\\d{2}")
-        self.logger.debug(f"row\n{row}")
-        for leg in leg_data:
-            tzid_col = leg_data[leg]["tzid"]
-            gmtoffset_col = leg_data[leg]["gmtoffset"]
+        self.logger.debug("row\n%s", row)
+        for leg_key, _ in leg_data.items():
+            tzid_col = leg_data[leg_key]["tzid"]
+            gmtoffset_col = leg_data[leg_key]["gmtoffset"]
 
-            lat = row[leg_data[leg]["lat"]]
-            lon = row[leg_data[leg]["lon"]]
-            date = row[leg_data[leg]["date"]]
-            self.logger.debug(f"find_tz for '{leg}`: `{lat}` `{lon}` `{date}'")
+            lat = row[leg_data[leg_key]["lat"]]
+            lon = row[leg_data[leg_key]["lon"]]
+            date = row[leg_data[leg_key]["date"]]
+            self.logger.debug(
+                "find_tz for '%s': '%s' '%s' '%s'", leg_key, lat, lon, date
+            )
 
             valid_posn = not (math.isnan(lat) or math.isnan(lon))
             valid_date = valid_date_pat.match(str(date))
 
             if valid_date and valid_posn:
-                self.logger.debug(f"Valid formats for {date};" f" lat/lon {lat},{lon}")
+                self.logger.debug(
+                    "Valid formats for %s; lat %s, lon %s", date, lat, lon
+                )
                 try:
                     tz = gn.find_tz(lat, lon, date, timeout=3, maxretries=5)
                 except GeoNamesDateReturnError:
-                    self.logger.debug(f"GeoNamesDateReturnError; using EMPTY_TZ_DICT")
+                    self.logger.debug("GeoNamesDateReturnError; using EMPTY_TZ_DICT")
                     tz = self._return_empty_tz_dict(row)
             else:
                 if not valid_date:
                     self.logger.debug(
-                        f"Invalid date format for {date};" " using EMPTY_TZ_DICT"
+                        "Invalid date format for %s; using EMPTY_TZ_DICT", date
                     )
                 else:
                     self.logger.debug(
-                        f"Invalid lat/lon format for {lat},{lon};"
-                        " using EMPTY_TZ_DICT"
+                        "Invalid lat/lon format for %s, %s; using EMPTY_TZ_DICT",
+                        lat,
+                        lon,
                     )
                 tz = self._return_empty_tz_dict(row)
 
@@ -926,13 +971,13 @@ class FMDownloader:
             # Year-Month-Day-Timezone information
             time_date_cols[leg] = utils.find_keys_containing(data_keys, leg)[leg]
             fill_rows = self.df["dt_info"] == lookups.DT_INFO_YMDT
-            self.logger.debug(f"fill_rows {leg} YMDT is length {sum(fill_rows)}")
+            self.logger.debug("fill_rows %s YMDT is length %s", leg, sum(fill_rows))
 
             if time_date_cols[leg]["date"] in self.df.columns:
                 # Only want to fill rows where date is absent
                 fill_rows = fill_rows & (self.df[time_date_cols[leg]["date"]].isna())
                 self.logger.debug(
-                    f"fill_rows {leg} YMDT is now length {sum(fill_rows)}"
+                    "fill_rows %s YMDT is now length %s", leg, sum(fill_rows)
                 )
 
             # Now fill the rows with the date info we have for this leg
@@ -945,12 +990,12 @@ class FMDownloader:
 
         # Can also get dates for where we have Year-Month-Day information
         fill_rows = self.df["dt_info"] == lookups.DT_INFO_YMD
-        self.logger.debug(f"fill_rows YMD is length {sum(fill_rows)}")
+        self.logger.debug("fill_rows YMD is length %s", sum(fill_rows))
         date_cols = [time_date_cols["dep"]["date"], time_date_cols["arr"]["date"]]
         if set(date_cols).issubset(set(self.df.columns)):
             # Again, only fill rows where date info is abset
             fill_rows = fill_rows & (self.df[date_cols].isna().any(axis=1))
-            self.logger.debug(f"fill_rows YMD is now length {sum(fill_rows)}")
+            self.logger.debug("fill_rows YMD is now length %s", sum(fill_rows))
 
         if sum(fill_rows):
             self.df.loc[fill_rows, date_cols] = self.df.loc[fill_rows, "date"]
@@ -963,9 +1008,9 @@ class FMDownloader:
         # See if we need to add columns
         new_cols = list(set(tz_cols).difference(self.df.columns))
         if not new_cols:
-            self.logger.debug(f"No new_cols to add")
+            self.logger.debug("No new_cols to add")
         else:
-            self.logger.debug(f"Adding new_cols: {new_cols}")
+            self.logger.debug("Adding new_cols: %s", new_cols)
             for new_col in new_cols:
                 self.df[new_col] = ""
 
@@ -984,18 +1029,18 @@ class FMDownloader:
         if num_flights is None:
             num_flights = sum(rows_to_update)
 
-        self.logger.info(f"Adding time zones for {num_flights} flights")
+        self.logger.info("Adding time zones for %s flights", num_flights)
         if num_flights == 0:
-            self.logger.info(f"No flights to update so ending add timezones")
+            self.logger.info("No flights to update so ending add timezones")
             return
 
         utils.percent_complete(updated_flights, num_flights)
         for index, row in self.df[rows_to_update].iterrows():
-            self.logger.debug(f"updated_flights: {updated_flights} " f"index: {index}")
+            self.logger.debug("updated_flights: %s index: %s", updated_flights, index)
             if updated_flights >= num_flights:
                 break
 
-            self.logger.debug(f"row is:\n{row[tz_cols]}\n{row[tz_cols].dtypes}")
+            self.logger.debug("row is:\n%s\n%s", row[tz_cols], row[tz_cols].dtypes)
 
             date_dt_cols = utils.get_parents_for_keys_with_all_values(
                 self.fms_data_dict, ["dt", "date"]
@@ -1019,34 +1064,36 @@ class FMDownloader:
                     valid_date_test = False
 
                 self.logger.debug(
-                    f"For date '{date_to_check}' "
-                    f"pattern match is '{valid_date}' "
-                    f"updated valid_date_test to {valid_date_test}"
+                    "For date '%s' pattern match is '%s' updated valid_date_test to %s",
+                    date_to_check,
+                    valid_date,
+                    valid_date_test,
                 )
 
             if all([update_blanks_only, valid_date_test]):
                 try:
-                    self.logger.debug(f"Updating index {index}")
+                    self.logger.debug("Updating index %s", index)
                     row = self._add_tz(row, gnusername=gnusername)
                     for tz_col in tz_cols:
                         self.df.loc[index, tz_col] = row[tz_col]
                 except GeoNamesStopError as err:
-                    self.logger.error(f"Stopping due to:\n{err}")
+                    self.logger.error("Stopping due to:\n%s", err)
                     break
 
                 updated_flights += 1
                 self.logger.debug(
-                    f"Updated index {index}; "
-                    f"have now updated {updated_flights} flights "
-                    f"out of {num_flights}"
+                    "Updated index %s; have now updated %s flights out of %s",
+                    index,
+                    updated_flights,
+                    num_flights,
                 )
             else:
                 self.logger.debug(
-                    f"Skipping index {index} due to "
-                    f"update_blanks_only '{update_blanks_only}' "
-                    f"valid_date_test '{valid_date_test}' "
+                    "Skipping index %s due to update_blanks_only '%s' valid_date_test '%s' ",
+                    index,
+                    update_blanks_only,
+                    valid_date_test,
                 )
-                next
 
             utils.percent_complete(updated_flights, num_flights)
 
@@ -1060,10 +1107,10 @@ class FMDownloader:
         """
         utils.check_create_path(save_fp)
         fp = Path(save_fp)
-        self.logger.info(f"Saving self.df to {fp}")
+        self.logger.info("Saving self.df to %s", fp)
         self.df.to_csv(fp, index=False, encoding="utf-8")
 
-    def read_pandas_from_csv(self, read_fp, save_fn="flights.csv"):
+    def read_pandas_from_csv(self, read_fp):
         """
         Read in csv to pandas data frame
 
@@ -1072,7 +1119,7 @@ class FMDownloader:
             save_fn: File name read in
         """
         fp = Path(read_fp)
-        self.logger.info(f"Reading self.df from {fp}")
+        self.logger.info("Reading self.df from %s", fp)
 
         datetime_cols = utils.get_parents_for_keys_with_all_values(
             self.fms_data_dict, ["dt"]
@@ -1096,7 +1143,7 @@ class FMDownloader:
         for col in timedelata_cols:
             self.df[col] = pd.to_timedelta(self.df[col])
 
-        self.logger.debug(f"Have read in csv; df types:\n{self.df.dtypes}")
+        self.logger.debug("Have read in csv; df types:\n%s", self.df.dtypes)
 
     def remove_rows_by_date(self, dbf=dt(2100, 12, 31), daf=dt(1900, 1, 1)):
         """
@@ -1112,12 +1159,12 @@ class FMDownloader:
         if daf is None:
             daf = dt(1900, 1, 1)
 
-        self.logger.debug(f"Removing rows between dates {dbf} and {daf}")
+        self.logger.debug("Removing rows between dates %s and %s", dbf, daf)
         rdrop = self.df[
             (self.df["date_as_dt"] >= daf) & (self.df["date_as_dt"] <= dbf)
         ].index
 
-        self.logger.debug(f"Removing {len(rdrop)} rows")
+        self.logger.debug("Removing %s rows", len(rdrop))
         self.df = self.df.drop(rdrop)
 
     def keep_rows_by_date(self, dbf=dt(2100, 12, 31), daf=dt(1900, 1, 1)):
@@ -1134,15 +1181,21 @@ class FMDownloader:
         if daf is None:
             daf = dt(1900, 1, 1)
 
-        self.logger.debug(f"Keeping rows between dates {dbf} and {daf}")
+        self.logger.debug("Keeping rows between dates %s and %s", dbf, daf)
         rkeep = self.df[
             (self.df["date_as_dt"] >= daf) & (self.df["date_as_dt"] <= dbf)
         ].index
 
-        self.logger.debug(f"Keeping {len(rkeep)} rows")
+        self.logger.debug("Keeping %s rows", len(rkeep))
         self.df = self.df.iloc[rkeep, :]
 
     def insert_updated_rows(self, fd_updated):
+        """
+        Insert updated rows
+
+        Args:
+            df_update: FMDownloader object with updated data
+        """
         on_cols = utils.get_parents_list_with_key_values(
             self.fms_data_dict, key="update_merge_on", values=[True]
         )
@@ -1161,11 +1214,9 @@ class FMDownloader:
         fd_updated.df[to_str_cols] = fd_updated.df[to_str_cols].astype(str)
 
         exc_cols = ["flight_index"]
-        self_dyptes = set(self.df.columns.to_list())
-        self.logger.debug(f"self has types:\n{self.df.dtypes}")
+        self.logger.debug("self has types:\n%s", self.df.dtypes)
 
-        fd_updated_dtypes = fd_updated.df.columns.to_list()
-        self.logger.debug(f"fd_updated has types:\n{fd_updated.df.dtypes}")
+        self.logger.debug("fd_updated has types:\n%s", fd_updated.df.dtypes)
 
         df_all = self.df.merge(
             fd_updated.df.loc[:, ~fd_updated.df.columns.isin(exc_cols)],
@@ -1188,7 +1239,7 @@ class FMDownloader:
         self.df = df_all.sort_values(by=sort_cols)
         self.df["flight_index"] = range(1, len(self.df.index) + 1)
 
-        self.logger.debug(f"Have inserted new data; now have:\n{self.df.dtypes}")
+        self.logger.debug("Have inserted new data; now have:\n%s", self.df.dtypes)
 
         non_str_cols = to_str_cols
         self.df[non_str_cols] = self.df[non_str_cols].replace(
@@ -1196,9 +1247,12 @@ class FMDownloader:
         )
         self.df[non_str_cols] = self.df[non_str_cols].astype(float)
 
-        self.logger.debug(f"Have replaced empty str now have:\n{self.df.dtypes}")
+        self.logger.debug("Have replaced empty str now have:\n%s", self.df.dtypes)
 
     def validate_distance_times(self):
+        """
+        Validate distances and times are correct
+        """
         self.df["dist_validated"] = fmvalidate.calc_distance(
             self.df, "lat_dep", "lon_dep", "lat_arr", "lon_arr"
         )
@@ -1228,10 +1282,10 @@ class FMDownloader:
         )
         col_renames = utils.swap_keys_values(col_renames)
 
-        for fmt in lookups.DT_FMTS.keys():
-            fmt_rows = exp_df["dt_info"] == fmt
-            dt_dmt = lookups.DT_FMTS[fmt]["fmt"]
-            dt_col = lookups.DT_FMTS[fmt]["srccol"]
+        for fmt_key, _ in lookups.DT_FMTS.items():
+            fmt_rows = exp_df["dt_info"] == fmt_key
+            dt_dmt = lookups.DT_FMTS[fmt_key]["fmt"]
+            dt_col = lookups.DT_FMTS[fmt_key]["srccol"]
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[
                 fmt_rows, dt_col
             ].dt.strftime(dt_dmt)
@@ -1251,7 +1305,9 @@ class FMDownloader:
         exp_df.insert(loc=col_loc, column="Trip", value="")
 
         exp_df.to_csv(fsave, index=False, encoding="utf-8")
-        self.logger.info(f"Finished exporting with format '{exp_format}` to `{fsave}'")
+        self.logger.info(
+            "Finished exporting with format '%s' to '%s'", exp_format, fsave
+        )
 
     def _export_to_myflightpath(self, fsave):
         exp_format = "myflightpath"
@@ -1264,15 +1320,13 @@ class FMDownloader:
         )
         col_renames = utils.swap_keys_values(col_renames)
 
-        for fmt in lookups.DT_FMTS.keys():
-            fmt_rows = exp_df["dt_info"] == fmt
-            dt_dmt = lookups.DT_FMTS[fmt]["myflightpath_fmt"]
-            dt_col = lookups.DT_FMTS[fmt]["srccol"]
+        for fmt_key, _ in lookups.DT_FMTS.items():
+            fmt_rows = exp_df["dt_info"] == fmt_key
+            dt_dmt = lookups.DT_FMTS[fmt_key]["myflightpath_fmt"]
+            dt_col = lookups.DT_FMTS[fmt_key]["srccol"]
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[
                 fmt_rows, dt_col
             ].dt.strftime(dt_dmt)
-
-        exp_df["class"].mask(exp_df["airline"] == "Private flight", "X", inplace=True),
 
         exp_cols = utils.get_keys(col_renames)
         exp_cols = [x for x in exp_cols if x in set(exp_df.columns)]
@@ -1297,15 +1351,24 @@ class FMDownloader:
         exp_df["is_public"] = "Y"
 
         exp_df.to_csv(fsave, index=False, encoding="utf-8")
-        self.logger.info(f"Finished exporting with format '{exp_format}` to `{fsave}'")
+        self.logger.info(
+            "Finished exporting with format '%s' to '%s'", exp_format, fsave
+        )
 
     def export_to(self, exp_format, fsave):
+        """
+        Export fmsave data in given export format to given file
+
+        Args:
+            exp_format: Export format to export data as
+            fsave: File to save exported data in
+        """
         formats = ["openflights", "myflightpath"]
         if not any(exp_format in f for f in formats):
             msg = f"Unrecognized export format '{exp_format}'; terminating"
             raise ValueError(msg)
 
-        self.logger.info(f"Continuing with exp format '{exp_format}'")
+        self.logger.info("Continuing with exp format '%s'", exp_format)
 
         if exp_format == "openflights":
             if fsave is None:
@@ -1315,56 +1378,3 @@ class FMDownloader:
             if fsave is None:
                 fsave = "myflightpath.csv"
             self._export_to_myflightpath(fsave)
-
-    def update_fm_data(self):
-        # For converting plane types
-        # lu_in_use = fmplanelu.FMPLANELU
-        # lu_col = 'airplane_type'
-        # fm_text_box_name = 'flugzeug'
-
-        # For converting plane types based on registration
-        # lu_in_use = fmplanelu.FMREGTYPE
-        # lu_col = 'airplane_reg'
-        # fm_text_box_name = 'flugzeug'
-
-        # For converting airline names
-        lu_in_use = fmplanelu.FMAIRLINENAMES
-        lu_col = "airline"
-        fm_text_box_name = "airline"
-
-        if not self.logged_in:
-            self.logger.info("Need to login to flightmemory.com")
-            if self.fm_un is None:
-                self.fm_un = logins.get_fm_un()
-            if self.fm_pw is None:
-                self.fm_pw = logins.get_fm_pw()
-            self.login()
-
-        outer_loop_counter = 0
-
-        data_to_lu = self.df[lu_col].unique()
-        all_lu_keys = lu_in_use.keys()
-        total_loops = self.df[lu_col].isin(all_lu_keys).sum()
-        for lu in data_to_lu:
-            if lu is None or (lu_in_use.get(lu) is None):
-                continue
-            rows = self.df[lu_col] == lu
-            inner_loop_counter = 0
-
-            urls = self.df.loc[rows, "detail_url"]
-            num_urls = len(urls.index)
-            new_entry = lu_in_use[lu]
-
-            self.logger.info(f"Replacing '{lu}` with `{new_entry}'")
-            for url in urls:
-                self.driver.get(url)
-                input_type = self.driver.find_element(By.NAME, fm_text_box_name)
-                input_type.clear()
-                input_type.send_keys(new_entry)
-                input_type.submit()
-                outer_loop_counter += 1
-                inner_loop_counter += 1
-                self.logger.info(
-                    f"Completed {outer_loop_counter} out of {total_loops} total and replaced {inner_loop_counter} out of {num_urls} for {lu}"
-                )
-        print("\n")

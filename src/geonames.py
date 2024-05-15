@@ -1,11 +1,14 @@
+"""Geonames API functionality"""
+
+import logging
 import requests
 from requests.adapters import HTTPAdapter
-from requests.exceptions import JSONDecodeError, ConnectionError
+from requests.exceptions import JSONDecodeError as rJSONDecodeError
+from requests.exceptions import ConnectionError as rConnectionError
 from urllib3.util.retry import Retry
 from urllib3.exceptions import MaxRetryError
 from exec import (
     GeoNamesError,
-    GeoNamesStopError,
     GeoNamesHTTPError,
     GeoNamesRetryError,
     GeoNamesCreditLimitError,
@@ -13,12 +16,12 @@ from exec import (
     GeoNamesConnectionError,
     GeoNamesDateReturnError,
 )
-import logging
+
 
 APP_NAME = "fmsave"
 _module_logger_name = f"{APP_NAME}.{__name__}"
 module_logger = logging.getLogger(_module_logger_name)
-module_logger.debug(f"Module {_module_logger_name} logger initialized")
+module_logger.debug("Module %s logger initialized", _module_logger_name)
 
 EMPTY_TZ_DICT = {
     "lat": None,
@@ -30,6 +33,8 @@ EMPTY_TZ_DICT = {
 
 
 class GeoNames:
+    """sGeonames API functionality"""
+
     url = "http://api.geonames.org/timezoneJSON"
 
     def __init__(
@@ -48,14 +53,14 @@ class GeoNames:
         _class_name = "GeoNames"
         _class_logger_name = f"{_module_logger_name}.{_class_name}"
         self.logger = logging.getLogger(_class_logger_name)
-        self.logger.debug(f"Class {_class_logger_name} initialized")
+        self.logger.debug("Class %s initialized, _class_logger_name")
 
         self.timeout = (timeout,)
         self.user_agent = (user_agent,)
         self.username = username
 
     def _call_geonames(self, url, params, callback, timeout=1, maxretries=3):
-        self.logger.debug(f"Sending request to url: {url}\nparams: {params}")
+        self.logger.debug("Sending request to url: %s\nparams: %s", url, params)
         retry_strategy = Retry(
             total=maxretries,
             status_forcelist=[429, 500, 502, 503, 504],
@@ -68,26 +73,26 @@ class GeoNames:
 
         try:
             response = http.get(url, params=params, timeout=timeout)
-        except ConnectionError as err:
+        except rConnectionError as err:
             err_msg = f"GeoNames connection error:\n{err}"
             self.logger.error(err_msg)
-            raise GeoNamesConnectionError(err_msg)
+            raise GeoNamesConnectionError(err_msg) from err
         except MaxRetryError as err:
             err_msg = f"GeoNames max retry error:\n{err}"
             self.logger.error(err_msg)
-            raise GeoNamesRetryError(err_msg)
+            raise GeoNamesRetryError(err_msg) from err
         resp_status = response.status_code
 
         try:
             resp_json = response.json()
             self._raise_for_error(resp_json)
-        except JSONDecodeError as err:
+        except rJSONDecodeError as err:
             err_msg = (
                 f"GeoNames HTTP error with status code {resp_status}"
                 + f"\n{response.text}\nCaused by\n{err}"
             )
             self.logger.error(err_msg)
-            raise GeoNamesHTTPError(err_msg)
+            raise GeoNamesHTTPError(err_msg) from err
 
         return callback(resp_json)
 
@@ -135,7 +140,7 @@ class GeoNames:
         except TypeError as err:
             err_msg = f"Error getting dates; likely error on requests side:\n{err}"
             self.logger.error(err_msg)
-            raise GeoNamesDateReturnError(err_msg)
+            raise GeoNamesDateReturnError(err_msg) from err
 
         resp_dict = {
             "lat": lat,

@@ -253,8 +253,8 @@ if __name__ == "__main__":
         dbf = args["--before"]
         daf = args["--after"]
 
-        dbf = utils.date_to_dt(dbf)
-        daf = utils.date_to_dt(daf)
+        dbf = None if dbf is None else utils.date_to_dt(dbf)
+        daf = None if daf is None else utils.date_to_dt(daf)
 
         fdd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
         update_csv(fd, fdd, gn_un, read_path, fread, fsave, dbf, daf)

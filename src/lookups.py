@@ -1,5 +1,6 @@
 """Holding dictionary based lookup conversions from flightmemory.com to other formats"""
 
+from enum import Enum
 from datetime import datetime as dt
 from datetime import timedelta as td
 
@@ -13,37 +14,39 @@ STR_TYPE_LU = {
 }
 
 
-# Date time information available
-DT_INFO_YMDT = "YMDT"  # Year Month Day Time
-DT_INFO_YMDO = "YMDO"  # Year Month Day Offset
-DT_INFO_YMD = "YMD"  # Year Month Day
-DT_INFO_YM = "YM"  # Year Month
-DT_INFO_Y = "Y"  # Year
+class DateTimeInfo(Enum):
+    """Holds date time information available for each flight"""
+
+    DT_INFO_YMDT = "YMDT"  # Year Month Day Time
+    DT_INFO_YMDO = "YMDO"  # Year Month Day Offset
+    DT_INFO_YMD = "YMD"  # Year Month Day
+    DT_INFO_YM = "YM"  # Year Month
+    DT_INFO_Y = "Y"  # Year
 
 
 # For converting datetime representations to strings
 DT_FMTS = {
-    DT_INFO_YMDT: {
+    DateTimeInfo.DT_INFO_YMDT.value: {
         "fmt": "%Y-%m-%d %H:%M",
         "myflightpath_fmt": "%Y-%m-%d",
         "srccol": "time_dep",
     },
-    DT_INFO_YMDO: {
+    DateTimeInfo.DT_INFO_YMDO.value: {
         "fmt": "%Y-%m-%d",
         "myflightpath_fmt": "%Y-%m-%d",
         "srccol": "date_as_dt",
     },
-    DT_INFO_YMD: {
+    DateTimeInfo.DT_INFO_YMD.value: {
         "fmt": "%Y-%m-%d",
         "myflightpath_fmt": "%Y-%m-%d",
         "srccol": "date_as_dt",
     },
-    DT_INFO_YM: {
+    DateTimeInfo.DT_INFO_YM.value: {
         "fmt": "%Y-%m",
         "myflightpath_fmt": "%Y-%m-%d",
         "srccol": "date_as_dt",
     },
-    DT_INFO_Y: {
+    DateTimeInfo.DT_INFO_Y.value: {
         "fmt": "%Y",
         "myflightpath_fmt": "%Y-%m-%d",
         "srccol": "date_as_dt",

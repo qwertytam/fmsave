@@ -304,11 +304,11 @@ class FMDownloader:
 
         # year, month, day and time available
         condition = self.df["time_dep"].str.len() > 0
-        self.df.loc[condition, "dt_info"] = lookups.DT_INFO_YMDT
+        self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_YMDT.value
 
         # year, month, day and offset available, but no time
         condition = ~self.df["date_offset"].isna() & self.df["dt_info"].isna()
-        self.df.loc[condition, "dt_info"] = lookups.DT_INFO_YMDO
+        self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_YMDO.value
         self.df.loc[condition, "time_dep"] = None
         self.df.loc[condition, "time_arr"] = None
 
@@ -323,7 +323,7 @@ class FMDownloader:
         # year, month, day only available
         pat = r"(\d{2})\.(\d{2})\.(\d{4})"
         condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(pat))
-        self.df.loc[condition, "dt_info"] = lookups.DT_INFO_YMD
+        self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_YMD.value
 
         repl = r"\3-\2-\1"
         self.df.loc[condition, "date"] = self.df.loc[condition, "date"].str.replace(
@@ -333,7 +333,7 @@ class FMDownloader:
         # year, month only available
         pat = r"(\d{2})\.(\d{4})"
         condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(pat))
-        self.df.loc[condition, "dt_info"] = lookups.DT_INFO_YM
+        self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_YM.value
 
         repl = r"\2-\1"
         self.df.loc[condition, "date"] = self.df.loc[condition, "date"].str.replace(
@@ -343,7 +343,7 @@ class FMDownloader:
         # year only available
         pat = r"\d{4}"
         condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(pat))
-        self.df.loc[condition, "dt_info"] = lookups.DT_INFO_Y
+        self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_Y.value
 
         pat = r"^\s*$"
         repl = "0"
@@ -970,7 +970,7 @@ class FMDownloader:
             # While we're getting the columns, will also see which rows have
             # Year-Month-Day-Timezone information
             time_date_cols[leg] = utils.find_keys_containing(data_keys, leg)[leg]
-            fill_rows = self.df["dt_info"] == lookups.DT_INFO_YMDT
+            fill_rows = self.df["dt_info"] == lookups.DateTimeInfo.DT_INFO_YMDT.value
             self.logger.debug("fill_rows %s YMDT is length %s", leg, sum(fill_rows))
 
             if time_date_cols[leg]["date"] in self.df.columns:
@@ -989,7 +989,7 @@ class FMDownloader:
                 )
 
         # Can also get dates for where we have Year-Month-Day information
-        fill_rows = self.df["dt_info"] == lookups.DT_INFO_YMD
+        fill_rows = self.df["dt_info"] == lookups.DateTimeInfo.DT_INFO_YMD.value
         self.logger.debug("fill_rows YMD is length %s", sum(fill_rows))
         date_cols = [time_date_cols["dep"]["date"], time_date_cols["arr"]["date"]]
         if set(date_cols).issubset(set(self.df.columns)):
@@ -1020,8 +1020,8 @@ class FMDownloader:
                 self.df[tz_cols].replace("", np.nan, inplace=False).isna().any(axis=1)
             )
             rows_to_update = rows_to_update & (
-                (self.df["dt_info"] == lookups.DT_INFO_YMDT)
-                | (self.df["dt_info"] == lookups.DT_INFO_YMD)
+                (self.df["dt_info"] == lookups.DateTimeInfo.DT_INFO_YMDT.value)
+                | (self.df["dt_info"] == lookups.DateTimeInfo.DT_INFO_YMD.value)
             )
         else:
             rows_to_update = pd.Series(data=True, index=self.df.index)

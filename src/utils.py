@@ -6,7 +6,8 @@ from pathlib import Path
 import re
 from string import Formatter
 from datetime import datetime as dt
-
+from typing import Any
+import pandas as pd
 from constants import DistanceConversions
 
 mpath = Path(__file__).parent.absolute()
@@ -17,7 +18,7 @@ module_logger = logging.getLogger(_module_logger_name)
 module_logger.debug("Module %s logger initialized", _module_logger_name)
 
 
-def check_create_path(dir_path, logger=module_logger):
+def check_create_path(dir_path: str, logger=module_logger):
     """
     Check if path exists, if not, creates path
 
@@ -50,7 +51,7 @@ def check_create_path(dir_path, logger=module_logger):
     Path(fp).mkdir(parents=True, exist_ok=True)
 
 
-def list_depth(l):
+def list_depth(l: list[Any]) -> int:
     """
     Find depth of nested list.
 
@@ -69,7 +70,9 @@ def list_depth(l):
         return 0
 
 
-def get_data_dict_column_names(data_dict, top_level_parent):
+def get_data_dict_column_names(
+    data_dict: dict[Any, Any], top_level_parent: str
+) -> list[Any]:
     """
     Gets names of keys under the keys 'top_level_parent': 'columns':
 
@@ -96,7 +99,7 @@ def get_data_dict_column_names(data_dict, top_level_parent):
     return [k for k in data_dict[top_level_parent]["columns"]]
 
 
-def get_bottom_lists(l, max_depth=1):
+def get_bottom_lists(l: list[Any], max_depth=1) -> list[Any]:
     """
     Get bottom most list(s) in a nested list
 
@@ -378,7 +381,9 @@ def replace_item(d, replace_dict):
     return d
 
 
-def percent_complete(step, total_steps, bar_width=60, title="", print_perc=True):
+def percent_complete(
+    step: int, total_steps: int, bar_width=60, title="", print_perc=True
+):
     """
     Author is StackOverFlow user WinEunuuchs2Unix
     ref: https://stackoverflow.com/questions/3002085/how-to-print-out-status-bar-and-percentage
@@ -420,7 +425,9 @@ def percent_complete(step, total_steps, bar_width=60, title="", print_perc=True)
     sys.stdout.flush()
 
 
-def print_selection_table(df, display_cols, col_widths):
+def print_selection_table(
+    df: pd.DataFrame, display_cols: list[str], col_widths: list[int]
+):
     """
     Print columns in dataframe using given widths
 
@@ -436,17 +443,19 @@ def print_selection_table(df, display_cols, col_widths):
     print(msg)
 
     # Selections
-    for idx, r in df.iterrows():
+    ridx = 0
+    for _, r in df.iterrows():
+        ridx += 1
         rprint = r.fillna("")
         msg = ""
         for cidx, col in enumerate(display_cols):
             msg += (
                 f"  {str(rprint[col])[slice(0,col_widths[cidx],)]:<{col_widths[cidx]}}"
             )
-        print(f"{idx+1:>2}:{msg}")
+        print(f"{ridx:>2}:{msg}")
 
 
-def swap_keys_values(d):
+def swap_keys_values(d: dict[Any, Any]) -> dict[Any, Any]:
     """
     Swaps keys with values in given dictionary
 
@@ -459,7 +468,7 @@ def swap_keys_values(d):
     return dict((v, k) for k, v in d.items())
 
 
-def get_keys(d):
+def get_keys(d: dict[Any, Any]) -> list:
     """
     Get all keys from given dictionary
 
@@ -523,7 +532,7 @@ def strfdelta(tdelta, fmt="{D:02}d {H:02}h {M:02}m {S:02}s", inputtype="timedelt
     return f.format(fmt, **values)
 
 
-def km_to_miles(km):
+def km_to_miles(km: float) -> float:
     """
     Convert kilometres to statute miles
 
@@ -536,7 +545,7 @@ def km_to_miles(km):
     return km * DistanceConversions.KM_TO_MILES.value
 
 
-def date_to_dt(ddmmyyyy):
+def date_to_dt(ddmmyyyy: str) -> dt:
     """
     Convert string to datetime
 
@@ -546,7 +555,4 @@ def date_to_dt(ddmmyyyy):
     Returns:
         ddmmyyyy as datetime
     """
-    if ddmmyyyy:
-        ddmmyyyy = dt.strptime(ddmmyyyy, "%d-%m-%Y")
-
-    return ddmmyyyy
+    return dt.strptime(ddmmyyyy, "%d-%m-%Y")

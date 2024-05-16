@@ -55,8 +55,8 @@ def _get_str_for_pd(page):
     return flight_tbl
 
 
-def _check_count(current_run_status, count, limit):
-    error_flag = False  #
+def _check_count(current_run_status: bool, count: int, limit: int) -> bool:
+    error_flag = False
     if count >= limit or error_flag:
         return False
     return current_run_status
@@ -214,7 +214,7 @@ class FMDownloader:
         pages_len = len(self.pages)
         self.logger.info("Found %s pages and read %s in", found_pages, pages_len)
 
-    def save_fm_pages(self, save_path, prefix="flightmemory", fext="html"):
+    def save_fm_pages(self, save_path: str, prefix="flightmemory", fext="html"):
         """
         Save html pages
 
@@ -237,7 +237,7 @@ class FMDownloader:
 
         self.logger.info("Saved %s pages to %s", total_pages, save_path)
 
-    def read_fm_pages(self, read_path, fext="html"):
+    def read_fm_pages(self, read_path: str, fext="html"):
         """
         Read in Flight Memory html pages from disk
 
@@ -574,7 +574,7 @@ class FMDownloader:
         print("\n")
         self.df["comment"] = self.df["comment"].str.replace(r"\n", "", regex=True)
 
-    def links_from_options(self, table):
+    def links_from_options(self, table) -> list[str]:
         """
         Get link for flight detail from 'option' table element
 
@@ -592,7 +592,7 @@ class FMDownloader:
 
         return links
 
-    def _get_date_filter(self, dates_before, dates_after):
+    def _get_date_filter(self, dates_before: dt, dates_after: dt):
         # date_filter = pd.Series(data=[True]*len(self.df.index), dtype='boolean')
         self.df["date_filter"] = True
         if dates_before:

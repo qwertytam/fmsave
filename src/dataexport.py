@@ -63,7 +63,7 @@ def fuzzy_match_of_airports(df, airport_data, check_col, data_col, find_col, log
         airport_data: openflights airport data set
         check_col: column name in 'df' to update with match
         data_col: column name in 'airport_data' to search for match
-        find_col: column name in 'df` to search for in `airport_data'
+        find_col: column name in 'df' to search for in 'airport_data'
         logger: Python logger to use
 
     Returns:

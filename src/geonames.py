@@ -165,7 +165,7 @@ class GeoNames:
             maxretries: maximum retries to get request from GeoNames
 
         Return:
-            Dictionary with 'lat`, `lon`, `date` `tz_id` and `gmt_offset'
+            Dictionary with 'lat', 'lon', 'date', 'tz_id', and 'gmt_offset'
         """
         params = {
             "lat": lat,

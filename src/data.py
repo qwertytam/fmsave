@@ -245,7 +245,7 @@ def fuzzy_merge(df_l, df_r, key_l, key_r, threshold=95, limit=10):
 
     Returns:
         The merged data frames with all matches above the threshold in the
-        'matches` column seperated by `', ''
+        'matches' column seperated by "', '"
     """
     sequences = df_r[key_r].tolist()
 

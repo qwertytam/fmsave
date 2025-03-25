@@ -19,12 +19,15 @@ Options:
 
 Commands:
   dlhtml    Download html pages
-  export    Export data to given format
   tocsv     Convert html pages into a csv file
-  upair     Update airport info data file
   upcsv     Update existing csv file based on downloaded html pages
-  upof      Update openflights data files
   uptz      Update timezone information in existing csv file
+  validate  Validate distances and times are correct
+  upair     Update airport info data file; typically using https://davidmegginson.github.io/ourairports-data/airports.csv
+  upof      Update openflights data files
+  upwiki    Update wikipedia data, namely IATA and ICAO aircraft type codes
+  export    Export data to given format
+
 
 Arguments:
   airurl        URL to download airport info from

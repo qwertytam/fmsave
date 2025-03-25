@@ -81,7 +81,7 @@ def update_ourairport_data(
     response = requests.get(url, params=query_parameters, timeout=timeout)
 
     _ = _write_data(fp, response.content, logger)
-    logger.debug("Completed update")
+    logger.info("Completed update or airport data from '%s'", url)
 
 
 def update_openflights_data(timeout=10, logger=module_logger):

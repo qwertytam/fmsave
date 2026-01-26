@@ -574,7 +574,7 @@ class FMDownloader:
             )
             if self.fm_un is None:
                 self.fm_un = logins.get_fm_un()
-            # Always prompt for password since it's cleared after login
+            # Always prompt for password since it's cleared after login (both success and failure)
             self.fm_pw = logins.get_fm_pw()
             self.login()
 

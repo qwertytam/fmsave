@@ -969,8 +969,7 @@ class FMDownloader:
         self.logger.debug("tz now:\n%s\n", tz)
         return tz
 
-    def _add_tz(self, row: pd.Series, gnusername: str) -> pd.Series:
-        gn = GeoNames(username=gnusername)
+    def _add_tz(self, row: pd.Series, gn: GeoNames) -> pd.Series:
 
         values = ["date", "lat", "lon", "tzid", "gmtoffset"]
         data_keys = utils.get_parents_with_key_values(
@@ -1119,6 +1118,9 @@ class FMDownloader:
             self.logger.info("No flights to update so ending add timezones")
             return
 
+        # Create GeoNames instance once, outside the loop
+        gn = GeoNames(username=gnusername)
+
         utils.percent_complete(updated_flights, num_flights)
         for index, row in self.df[rows_to_update].iterrows():
             self.logger.debug("updated_flights: %s index: %s", updated_flights, index)
@@ -1158,7 +1160,7 @@ class FMDownloader:
             if all([update_blanks_only, valid_date_test]):
                 try:
                     self.logger.debug("Updating index %s", index)
-                    row = self._add_tz(row, gnusername=gnusername)
+                    row = self._add_tz(row, gn=gn)
                     for tz_col in tz_cols:
                         self.df.loc[index, tz_col] = row[tz_col]
                 except GeoNamesStopError as err:
@@ -1368,7 +1370,7 @@ class FMDownloader:
 
     def _export_to_openflights(self, fsave: str) -> None:
         exp_format = "openflights"
-        exp_df = dataexport.match_openflights_airports(self.df, self.logger)
+        exp_df = dataexport.match_openflights_airports(self.df.copy(), self.logger)
         exp_df = dataexport.match_openflights_airlines(exp_df, self.logger)
 
         exp_data_dict = data.get_yaml(exp_format, exp_format, logger=self.logger)
@@ -1377,18 +1379,28 @@ class FMDownloader:
         )
         col_renames = utils.swap_keys_values(col_renames)
 
+        # Initialize date_as_str column
+        exp_df["date_as_str"] = ""
+
         for fmt_key, _ in lookups.DT_FMTS.items():
             fmt_rows = exp_df["dt_info"] == fmt_key
+            if not fmt_rows.any():
+                continue
+                
             dt_fmt = lookups.DT_FMTS[fmt_key]["fmt"]
             dt_col = lookups.DT_FMTS[fmt_key]["srccol"]
             
-            # Ensure column exists and is datetime type before using .dt accessor
-            if dt_col in exp_df.columns and fmt_rows.any():
-                # Convert to datetime if not already
-                if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
-                    exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
-                
-                exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_fmt)
+            if dt_col not in exp_df.columns:
+                self.logger.warning("Column %s not found in DataFrame", dt_col)
+                continue
+            
+            # Ensure column is datetime type before using .dt accessor
+            if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
+                self.logger.debug("Converting %s to datetime", dt_col)
+                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+            
+            # Now safely use .dt accessor
+            exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_fmt)
 
         exp_cols = utils.get_keys(col_renames)
         exp_cols = [x for x in exp_cols if x in set(exp_df.columns)]
@@ -1420,10 +1432,27 @@ class FMDownloader:
         )
         col_renames = utils.swap_keys_values(col_renames)
 
+        # Initialize date_as_str column
+        exp_df["date_as_str"] = ""
+
         for fmt_key, _ in lookups.DT_FMTS.items():
             fmt_rows = exp_df["dt_info"] == fmt_key
+            if not fmt_rows.any():
+                continue
+                
             dt_dmt = lookups.DT_FMTS[fmt_key]["myflightpath_fmt"]
             dt_col = lookups.DT_FMTS[fmt_key]["srccol"]
+            
+            if dt_col not in exp_df.columns:
+                self.logger.warning("Column %s not found in DataFrame", dt_col)
+                continue
+            
+            # Ensure column is datetime type before using .dt accessor
+            if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
+                self.logger.debug("Converting %s to datetime", dt_col)
+                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+            
+            # Now safely use .dt accessor
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[
                 fmt_rows, dt_col
             ].dt.strftime(dt_dmt)
@@ -1433,7 +1462,12 @@ class FMDownloader:
         exp_df = exp_df[exp_cols].rename(columns=col_renames)
 
         for time_col in ["departure_time", "arrival_time"]:
-            exp_df[time_col] = exp_df[time_col].dt.strftime("%H:%M")
+            # Ensure time columns are datetime type before using .dt accessor
+            if time_col in exp_df.columns:
+                if not pd.api.types.is_datetime64_any_dtype(exp_df[time_col]):
+                    self.logger.debug("Converting %s to datetime", time_col)
+                    exp_df[time_col] = pd.to_datetime(exp_df[time_col], errors='coerce')
+                exp_df[time_col] = exp_df[time_col].dt.strftime("%H:%M")
 
         exp_df["duration"] = exp_df["duration"].apply(
             lambda x: utils.strfdelta(x, "{H:02}:{M:02}")

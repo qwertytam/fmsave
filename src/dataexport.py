@@ -48,18 +48,23 @@ def get_openflights_data(
     # some null markers may still appear as strings in the data
     of_data = of_data.replace(["\\N", "-", ""], pd.NA)
     
-    # Convert types with error handling for columns that can't be converted
+    # Make a copy to avoid CoW issues
+    of_data = of_data.copy()
+    
+    # Convert types with proper handling
     for col, dtype in col_types.items():
         if col in of_data.columns:
-            try:
-                of_data.loc[:, col] = of_data[col].astype(dtype)
-            except (ValueError, TypeError):
-                # If conversion fails, try converting to numeric for float columns
-                # Check for float type (handles float, 'float', 'float64')
-                if dtype == float or (isinstance(dtype, str) and 'float' in dtype.lower()):
-                    of_data.loc[:, col] = pd.to_numeric(of_data[col], errors='coerce')
-                else:
-                    logger.warning(f"Could not convert column {col} to {dtype}")
+            if dtype == float or 'float' in str(dtype).lower():
+                # For float columns, use pd.to_numeric which handles NaN properly
+                of_data[col] = pd.to_numeric(of_data[col], errors='coerce')
+            elif dtype == str or dtype == 'str':
+                # For string columns, fillna with empty string before conversion
+                of_data[col] = of_data[col].fillna('').astype(str)
+            else:
+                try:
+                    of_data[col] = of_data[col].astype(dtype)
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Could not convert column {col} to {dtype}: {e}")
     
     return of_data
 

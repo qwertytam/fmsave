@@ -50,7 +50,7 @@ from pathlib import Path
 from docopt import docopt
 import yaml
 
-import config
+import config as cfg
 import logins
 from data import update_ourairport_data, update_openflights_data, dl_aircraft_codes
 from fmdownload import FMDownloader
@@ -208,14 +208,19 @@ def show_status(fmdownloader, file_read):
     Show status/statistics of flight data file
     
     Args:
-        fmdownloader: FMDownloader class object
+        fmdownloader: FMDownloader class object (or None if not available)
         file_read: fmsave csv to read
     """
     import pandas as pd
     
-    # Read the CSV file
-    fmdownloader.read_pandas_from_csv(read_fp=file_read)
-    df = fmdownloader.df
+    # If fmdownloader is available, use it to read the CSV with proper types
+    # Otherwise, read directly with pandas
+    if fmdownloader is not None:
+        fmdownloader.read_pandas_from_csv(read_fp=file_read)
+        df = fmdownloader.df
+    else:
+        # Read CSV directly without FMDownloader
+        df = pd.read_csv(file_read)
     
     # Calculate statistics
     total_flights = len(df)
@@ -285,12 +290,17 @@ if __name__ == "__main__":
     gn_un = args["<gn_un>"]
     read_path = args["<read_path>"]
 
-    CHROME_PATH = config.get_chrome_path(args["<chrome_path>"])
+    # For status command, we don't need FMDownloader
+    if status:
+        show_status(None, fread)
+        sys.exit(0)
 
+    # For other commands, initialize FMDownloader
+    CHROME_PATH = cfg.get_chrome_path(args["<chrome_path>"])
     fd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
 
     if dlhtml:
-        fm_un = config.get_flightmemory_username(args["<fm_un>"])
+        fm_un = cfg.get_flightmemory_username(args["<fm_un>"])
         if fm_un is None:
             print("Error: FlightMemory username required. Provide via argument, config file, or FMSAVE_FM_USERNAME environment variable.")
             sys.exit(1)
@@ -307,7 +317,7 @@ if __name__ == "__main__":
         export_to(fd, exp_format, fread, fsave)
 
     if tocsv:
-        gn_un = config.get_geonames_username(args["<gn_un>"])
+        gn_un = cfg.get_geonames_username(args["<gn_un>"])
         if gn_un is None:
             print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
             sys.exit(1)
@@ -323,7 +333,7 @@ if __name__ == "__main__":
             update_ourairport_data(url=airurl, logger=logger)
 
     if upcsv:
-        gn_un = config.get_geonames_username(args["<gn_un>"])
+        gn_un = cfg.get_geonames_username(args["<gn_un>"])
         if gn_un is None:
             print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
             sys.exit(1)
@@ -343,7 +353,7 @@ if __name__ == "__main__":
         update_openflights_data(logger=logger)
 
     if uptz:
-        gn_un = config.get_geonames_username(args["<gn_un>"])
+        gn_un = cfg.get_geonames_username(args["<gn_un>"])
         if gn_un is None:
             print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
             sys.exit(1)
@@ -358,6 +368,3 @@ if __name__ == "__main__":
 
     if upwiki:
         update_wiki()
-
-    if status:
-        show_status(fd, fread)

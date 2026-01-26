@@ -41,6 +41,36 @@ module_logger.info("Module %s logger initialized", _module_logger_name)
 WDSCRIPT_OUTER_HTML = "return document.documentElement.outerHTML"
 FM_BASE_URL = "https://www.flightmemory.com/signin/"
 
+# Pre-compiled regex patterns for better performance
+# Date parsing patterns
+RE_DATE_OFFSET = re.compile(r"^(\d{2}\.\d{2}\.\d{4})\s+((?:\+|\-)\d)")
+RE_DATE_YMD = re.compile(r"(\d{2})\.(\d{2})\.(\d{4})")
+RE_DATE_YM = re.compile(r"(\d{2})\.(\d{4})")
+RE_DATE_Y = re.compile(r"\d{4}")
+RE_EMPTY_STRING = re.compile(r"^\s*$")
+
+# Airplane registration patterns
+RE_AIRPLANE_REG = re.compile(
+    r"(?>\s|^)("
+    r"(?>N\w{3,5})"  # USA registrations
+    r"|(?>(?>(?>HI|HL|JA|JR|UK|UR|YV)\w{2,5}))"  # Two letter prefix, no dash
+    r"|(?>(?>2|B|C|D|F|G|I|M|P|U|Z)-\w{2,5})"  # Single letter prefix
+    r"|(?>(?>3|4|5|6|7|8|9)[A-Z]-\w{2,5})"  # Number then letter prefix
+    r"|(?>(?>C|D|E|H|J|L|O|P|R|S|T|U|V|X|Y|Z)\w-\w{2,5})"  # Letter from C onwards
+    r"|(?>A(?>[P2-8])-\w{2,5})"  # 'A' then number or letter
+    r")(?>\s|$)"
+)
+
+# Flight number pattern
+RE_FLIGHT_NUM = re.compile(r"(\w{2}\d{1,4})$")
+RE_AIRLINE_FLIGHT = re.compile(r"(.+) (\w{2}\d{1,4})$")
+
+# Comment detection pattern
+RE_NOTE = re.compile(r"Note ")
+
+# Valid date pattern for timezone lookups
+RE_VALID_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
 
 def _get_str_for_pd(page):
     sio = io.StringIO(page)
@@ -290,17 +320,14 @@ class FMDownloader:
         # Year only: YYYY or in regex r'^\d{4}'
         # Date only: DD-MM-YYYY or r'^\d{2}\.\d{2}\.\d{4}$'
         # Date with time: DD-MM-YYYY HH:MM or r'^\d{2}\.\d{2}\.\d{4}\s+\d{2}\:\d{2}$'
-        # Date, time with day offset: DD-MM-YYYY HH:MM +/-D or
-        # r'^\d{2}\.\d{2}\.\d{4}\s+\d{2}\:\d{2}\s+\d{2}\:\d{2}\s+(?:\+|\-)\d)$'
-        # Date with day offset: DD-MM-YYYY +/-D or r'^\d{2}\.\d{2}\.\d{4}\s+(?:\+|\-)\d)$'
+        # Date, time with day offset: DD-MM-YYYY HH:MM +/-D
+        # Date with day offset: DD-MM-YYYY +/-D
         # Note there may be multiple spaces due to the collapsing of new lines
 
         # For the date with day offset case, need to ensure there are three
         # spaces for when we split into four columns
-        pat = r"^(\d{2}\.\d{2}\.\d{4})\s+((?:\+|\-)\d)"
-        repl = r"\1   \2"
         self.df["date_dept_arr_offset"] = self.df["date_dept_arr_offset"].str.replace(
-            pat=pat, repl=repl, regex=True
+            pat=RE_DATE_OFFSET, repl=r"\1   \2", regex=True
         )
 
         expected_cols = 4
@@ -334,43 +361,37 @@ class FMDownloader:
         self.df.loc[condition, "time_dep"] = None
         self.df.loc[condition, "time_arr"] = None
 
-        # rearrange date by putting year first
-        pat = r"(\d{2})\.(\d{2})\.(\d{4})"
+        # rearrange date by putting year first - use pre-compiled pattern
         repl = r"\3-\2-\1"
         condition = ~self.df["dt_info"].isna()
         self.df.loc[condition, "date"] = self.df.loc[condition, "date"].str.replace(
-            pat=pat, repl=repl, regex=True
+            pat=RE_DATE_YMD, repl=repl, regex=True
         )
 
-        # year, month, day only available
-        pat = r"(\d{2})\.(\d{2})\.(\d{4})"
-        condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(pat))
+        # year, month, day only available - use pre-compiled pattern
+        condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(RE_DATE_YMD))
         self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_YMD.value
 
-        repl = r"\3-\2-\1"
         self.df.loc[condition, "date"] = self.df.loc[condition, "date"].str.replace(
-            pat=pat, repl=repl, regex=True
+            pat=RE_DATE_YMD, repl=repl, regex=True
         )
 
-        # year, month only available
-        pat = r"(\d{2})\.(\d{4})"
-        condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(pat))
+        # year, month only available - use pre-compiled pattern
+        repl_ym = r"\2-\1"
+        condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(RE_DATE_YM))
         self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_YM.value
 
-        repl = r"\2-\1"
         self.df.loc[condition, "date"] = self.df.loc[condition, "date"].str.replace(
-            pat=pat, repl=repl, regex=True
+            pat=RE_DATE_YM, repl=repl_ym, regex=True
         )
 
-        # year only available
-        pat = r"\d{4}"
-        condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(pat))
+        # year only available - use pre-compiled pattern
+        condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(RE_DATE_Y))
         self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_Y.value
 
-        pat = r"^\s*$"
-        repl = "0"
+        # Use pre-compiled empty string pattern
         self.df["date_offset"] = self.df["date_offset"].str.replace(
-            pat=pat, repl=repl, regex=True
+            pat=RE_EMPTY_STRING, repl="0", regex=True
         )
 
     def _split_dist_col(self):
@@ -409,34 +430,9 @@ class FMDownloader:
         self.df.loc[move_col_rows, "class"] = ""
 
     def _split_airplane_col(self):
-        # start of string
-        pat = "(?>\\s|^)("
-
-        # for USA registrations
-        pat += "(?>N\\w{3,5})"
-
-        # for registrations with two letter prefix and four digit suffix, no dash
-        pat += "|(?>(?>HI|HL|JA|JR|UK|UR|YV)\\w{2,5})"
-
-        # for registrations with single letter prefix
-        pat += "|(?>(?>2|B|C|D|F|G|I|M|P|U|Z)-\\w{2,5})"
-
-        # for registrations with  a prefix starting with a number then a letter
-        pat += "|(?>(?>3|4|5|6|7|8|9)[A-Z]-\\w{2,5})"
-
-        # for  registrations with a prefix starting with a letter from
-        # C onwards, then a number or a letter
-        pat += "|(?>(?>C|D|E|H|J|L|O|P|R|S|T|U|V|X|Y|Z)\\w-\\w{2,5})"
-
-        # for registrations with a prefix starting with 'A' then a number or a letter
-        pat += "|(?>A(?>[P2-8])-\\w{2,5})"
-
-        # end of string
-        pat += ")(?>\\s|$)"
-
         expected_cols = 3
         str_split = self.df["airplane_reg_name"].str.split(
-            pat, expand=True, n=expected_cols
+            RE_AIRPLANE_REG, expand=True, n=expected_cols
         )
 
         if len(str_split.columns) == 1:
@@ -463,7 +459,10 @@ class FMDownloader:
         )
         col_types = utils.replace_item(col_types, lookups.STR_TYPE_LU)
 
-        wiki_data = data.get_wiki_data(data_set, names=col_names, dtype=col_types)
+        wiki_data = data.get_wiki_data(data_set)
+        # Apply column names and types after loading
+        wiki_data.columns = col_names
+        wiki_data = wiki_data.astype(col_types)
 
         self.df[match_col] = self.df[match_col].fillna("")
         self.df = data.fuzzy_merge(self.df, wiki_data, match_col, "model_name", limit=1)
@@ -509,17 +508,14 @@ class FMDownloader:
                 ].values[0]
 
     def _split_airline_col(self):
-        pat = r"(\w{2}\d{1,4})$"
         self.df["flightnum"] = self.df["airline_flightnum"].str.extract(
-            pat, expand=True
+            RE_FLIGHT_NUM, expand=True
         )
 
         self.df["iata_airline"] = self.df["flightnum"].str.slice(0, 2)
 
-        pat = r"(.+) " + pat
-        repl = r"\1"
         self.df["airline"] = self.df["airline_flightnum"].str.replace(
-            pat=pat, repl=repl, regex=True
+            pat=RE_AIRLINE_FLIGHT, repl=r"\1", regex=True
         )
 
     def _dates_to_dt(self):
@@ -556,9 +552,8 @@ class FMDownloader:
         ) + pd.to_timedelta(dur_hr_min[1], unit="m")
 
     def _comments_detailurl(self):
-        pat = r"Note "
         self.df["comments"] = self.df["comments_detail_url"].str.contains(
-            pat=pat, regex=True
+            pat=RE_NOTE, regex=True
         )
 
     def get_comments(self, filter_col=None):
@@ -578,22 +573,31 @@ class FMDownloader:
             self.fm_pw = logins.get_fm_pw()
             self.login()
 
-        loop_counter = 0
         filter_cols = [filter_col, "comments"] if filter_col else ["comments"]
-        urls = self.df.loc[self.df[filter_cols].all(axis=1), "detail_url"]
+        mask = self.df[filter_cols].all(axis=1)
+        urls = self.df.loc[mask, "detail_url"].tolist()
+        indices = self.df.loc[mask].index.tolist()
+        
         num_urls = len(urls)
         self.logger.debug("Have %s urls to get", num_urls)
-        utils.percent_complete(loop_counter, num_urls)
-        for url in urls:
-            self.logger.debug(
-                "Getting url %s out of %s: %s", loop_counter + 1, num_urls, url
-            )
+        
+        # Pre-allocate comments list for batch update
+        comments = []
+        
+        utils.percent_complete(0, num_urls)
+        for i, (idx, url) in enumerate(zip(indices, urls)):
+            self.logger.debug("Getting url %s out of %s: %s", i + 1, num_urls, url)
             self.driver.get(url)
             comment = self.driver.find_element(By.NAME, "kommentar").text
-            self.df.loc[self.df["detail_url"] == url, "comment"] = comment
-            loop_counter += 1
-            utils.percent_complete(loop_counter, num_urls)
+            comments.append((idx, comment))
+            utils.percent_complete(i + 1, num_urls)
+        
         print("\n")
+        
+        # Batch update instead of updating one row at a time
+        for idx, comment in comments:
+            self.df.loc[idx, "comment"] = comment
+        
         self.df["comment"] = self.df["comment"].str.replace(r"\n", "", regex=True)
 
     def links_from_options(self, table) -> list[str]:
@@ -636,6 +640,7 @@ class FMDownloader:
             dates_before: Only get comments for flights before this date; as datetime
             dates_after: Only get comments for flights before this date; as datetime
         """
+        dfs = []
         total_pages = 0
         for _, page in enumerate(self.pages):
             total_pages += 1
@@ -646,7 +651,10 @@ class FMDownloader:
                 flavor="bs4",
             )[0]
             df["detail_url"] = self.links_from_options(flight_tbl)
-            self.df = pd.concat([self.df, df], ignore_index=True)
+            dfs.append(df)
+
+        # Single concat at the end is much faster than repeated concats
+        self.df = pd.concat(dfs, ignore_index=True)
 
         self.logger.info(
             "Finished reading in %s pages;  read in %s flights",
@@ -926,7 +934,7 @@ class FMDownloader:
             leg_data[leg] = utils.find_keys_containing(data_keys, leg)[leg]
 
         self.logger.debug("leg_data is:\n%s", leg_data)
-        valid_date_pat = re.compile("\\d{4}-\\d{2}-\\d{2}")
+        # Use pre-compiled pattern instead of re.compile() each time
         self.logger.debug("row\n%s", row)
         for leg_key, _ in leg_data.items():
             tzid_col = leg_data[leg_key]["tzid"]
@@ -940,7 +948,7 @@ class FMDownloader:
             )
 
             valid_posn = not (math.isnan(lat) or math.isnan(lon))
-            valid_date = valid_date_pat.match(str(date))
+            valid_date = RE_VALID_DATE.match(str(date))  # Use pre-compiled pattern
 
             if valid_date and valid_posn:
                 self.logger.debug(
@@ -1077,11 +1085,11 @@ class FMDownloader:
                 set(date_dt_cols) & (set(date_dep_cols) | set(date_arr_cols))
             )
 
-            valid_date_pat = re.compile("\\d{4}-\\d{2}-\\d{2}")
+            # Use module-level pre-compiled RE_VALID_DATE pattern
             valid_date_test = True
             for date_col in date_cols:
                 date_to_check = row[date_col]
-                valid_date = valid_date_pat.match(str(date_to_check))
+                valid_date = RE_VALID_DATE.match(str(date_to_check))
                 if not valid_date and valid_date_test:
                     valid_date_test = False
 

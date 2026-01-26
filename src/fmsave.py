@@ -52,7 +52,7 @@ import yaml
 
 import config as cfg
 import logins
-from data import update_ourairport_data, update_openflights_data, dl_aircraft_codes
+from data import update_ourairport_data, update_openflights_data, dl_aircraft_codes, clear_data_caches
 from fmdownload import FMDownloader
 import defaults
 import utils
@@ -349,6 +349,8 @@ if __name__ == "__main__":
                 update_ourairport_data(logger=logger)
             else:
                 update_ourairport_data(url=airurl, logger=logger)
+            clear_data_caches()
+            logger.info("Cleared data caches after updating airport data")
 
         if upcsv:
             gn_un = cfg.get_geonames_username(args["<gn_un>"])
@@ -372,6 +374,8 @@ if __name__ == "__main__":
 
         if upof:
             update_openflights_data(logger=logger)
+            clear_data_caches()
+            logger.info("Cleared data caches after updating openflights data")
 
         if uptz:
             gn_un = cfg.get_geonames_username(args["<gn_un>"])
@@ -389,5 +393,7 @@ if __name__ == "__main__":
 
         if upwiki:
             update_wiki()
+            clear_data_caches()
+            logger.info("Cleared data caches after updating wiki data")
     finally:
         fd.close()

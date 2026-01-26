@@ -24,7 +24,7 @@ def get_openflights_data(
         data_set: openflights data set to get
         logger: Python logger to use
         exp_format: Export format i.e. 'openflights'
-        supplemental: Wether to get '_supplemental.csv' data set
+        supplemental: Whether to get '_supplemental.csv' data set
 
     Returns:
         openflights data set as pandas data frame
@@ -48,7 +48,7 @@ def get_openflights_data(
     # some null markers may still appear as strings in the data
     of_data = of_data.replace(["\\N", "-", ""], pd.NA)
     
-    # Convert types, using errors='ignore' for columns that can't be converted
+    # Convert types with error handling for columns that can't be converted
     for col, dtype in col_types.items():
         if col in of_data.columns:
             try:

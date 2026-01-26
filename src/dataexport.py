@@ -54,7 +54,7 @@ def get_openflights_data(
     # Convert types with proper handling
     for col, dtype in col_types.items():
         if col in of_data.columns:
-            if dtype == float or (isinstance(dtype, str) and 'float' in str(dtype).lower()):
+            if dtype == float or 'float' in str(dtype).lower():
                 # For float columns, use pd.to_numeric which handles NaN properly
                 of_data[col] = pd.to_numeric(of_data[col], errors='coerce')
             elif dtype == str or dtype == 'str':

@@ -1391,12 +1391,12 @@ class FMDownloader:
             dt_col = lookups.DT_FMTS[fmt_key]["srccol"]
             
             if dt_col not in exp_df.columns:
-                self.logger.warning(f"Column {dt_col} not found in DataFrame")
+                self.logger.warning("Column %s not found in DataFrame", dt_col)
                 continue
             
             # Ensure column is datetime type before using .dt accessor
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
-                self.logger.debug(f"Converting {dt_col} to datetime")
+                self.logger.debug("Converting %s to datetime", dt_col)
                 exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
             # Now safely use .dt accessor
@@ -1444,12 +1444,12 @@ class FMDownloader:
             dt_col = lookups.DT_FMTS[fmt_key]["srccol"]
             
             if dt_col not in exp_df.columns:
-                self.logger.warning(f"Column {dt_col} not found in DataFrame")
+                self.logger.warning("Column %s not found in DataFrame", dt_col)
                 continue
             
             # Ensure column is datetime type before using .dt accessor
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
-                self.logger.debug(f"Converting {dt_col} to datetime")
+                self.logger.debug("Converting %s to datetime", dt_col)
                 exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
             # Now safely use .dt accessor
@@ -1465,7 +1465,7 @@ class FMDownloader:
             # Ensure time columns are datetime type before using .dt accessor
             if time_col in exp_df.columns:
                 if not pd.api.types.is_datetime64_any_dtype(exp_df[time_col]):
-                    self.logger.debug(f"Converting {time_col} to datetime")
+                    self.logger.debug("Converting %s to datetime", time_col)
                     exp_df[time_col] = pd.to_datetime(exp_df[time_col], errors='coerce')
                 exp_df[time_col] = exp_df[time_col].dt.strftime("%H:%M")
 

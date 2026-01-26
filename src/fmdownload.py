@@ -22,7 +22,8 @@ import pandas as pd
 from geonames import GeoNames
 from geonames import GeoNamesDateReturnError
 from geonames import EMPTY_TZ_DICT
-from exec import GeoNamesStopError
+from exceptions import GeoNamesStopError
+from constants import Timeouts, URLs, APILimits
 
 import logins
 import data
@@ -39,7 +40,7 @@ module_logger = logging.getLogger(_module_logger_name)
 module_logger.info("Module %s logger initialized", _module_logger_name)
 
 WDSCRIPT_OUTER_HTML = "return document.documentElement.outerHTML"
-FM_BASE_URL = "https://www.flightmemory.com/signin/"
+FM_BASE_URL = URLs.FLIGHT_MEMORY_SIGNIN
 
 # Pre-compiled regex patterns for better performance
 # Date parsing patterns
@@ -149,8 +150,8 @@ class FMDownloader:
         self,
         username=None,
         password=None,
-        login_page="https://www.flightmemory.com/",
-        timeout=5,
+        login_page=URLs.FLIGHT_MEMORY_LOGIN,
+        timeout=Timeouts.LOGIN,
     ):
         """
         Log into Flight Memory website
@@ -218,7 +219,7 @@ class FMDownloader:
             )
         ).click()
 
-    def get_fm_pages(self, max_pages=None, last_page_timeout=5):
+    def get_fm_pages(self, max_pages=None, last_page_timeout=Timeouts.LAST_PAGE):
         """
         Get html pages from Flight Memory website
 
@@ -955,7 +956,7 @@ class FMDownloader:
                     "Valid formats for %s; lat %s, lon %s", date, lat, lon
                 )
                 try:
-                    tz = gn.find_tz(lat, lon, date, timeout=3, maxretries=5)
+                    tz = gn.find_tz(lat, lon, date, timeout=Timeouts.API_CALL, maxretries=APILimits.GEONAMES_MAX_RETRIES)
                 except GeoNamesDateReturnError:
                     self.logger.debug("GeoNamesDateReturnError; using EMPTY_TZ_DICT")
                     tz = self._return_empty_tz_dict(row)

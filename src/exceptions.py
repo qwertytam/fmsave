@@ -59,5 +59,5 @@ class GeoNamesCreditLimitError(GeoNamesStopError):
 
 class GeoNamesUserAuthError(GeoNamesStopError):
     """
-    For GeoNames user autentication error
+    For GeoNames user authentication error
     """

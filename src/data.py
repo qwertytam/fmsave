@@ -12,6 +12,7 @@ import yaml
 import wikipedia as wp
 
 import utils
+from constants import URLs, FileExtensions, Timeouts
 
 mpath = Path(__file__).parent.absolute()
 dpath = mpath.parent.absolute() / "data"
@@ -24,12 +25,10 @@ module_logger.info("Module %s logger initialized", _module_logger_name)
 OURAIRPORTS_DATA_FILEPATH = mpath.parent / "data/ourairports/airports.csv"
 
 # add '.dat' to data set name
-OPENFLIGHTS_DATA_URL_BASE = (
-    "https://raw.githubusercontent.com/jpatokal/openflights/master/data/"
-)
+OPENFLIGHTS_DATA_URL_BASE = URLs.OPENFLIGHTS_DATA_BASE
 OPENFLIGHTS_DATA_FP_BASE = mpath.parent / "data/openflights/"
 OPENFLIGHTS_DATA_SETS = ["airports", "airlines", "planes"]
-OPENFLIGHTS_FILE_EXT = ".dat"
+OPENFLIGHTS_FILE_EXT = FileExtensions.DAT
 
 WIKI_DATA_FP_BASE = mpath.parent / "data/wiki/"
 
@@ -63,9 +62,9 @@ def _write_data(fp, data, logger=module_logger):
 
 
 def update_ourairport_data(
-    url="https://davidmegginson.github.io/ourairports-data/airports.csv",
+    url=URLs.OURAIRPORTS_DATA,
     fp=OURAIRPORTS_DATA_FILEPATH,
-    timeout=10,
+    timeout=Timeouts.GEONAMES_DEFAULT,
     logger=module_logger,
 ):
     """
@@ -85,7 +84,7 @@ def update_ourairport_data(
     logger.info("Completed update or airport data from '%s'", url)
 
 
-def update_openflights_data(timeout=10, logger=module_logger):
+def update_openflights_data(timeout=Timeouts.GEONAMES_DEFAULT, logger=module_logger):
     """
     Update openflights data set
 

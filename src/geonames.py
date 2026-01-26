@@ -7,7 +7,7 @@ from requests.exceptions import JSONDecodeError as rJSONDecodeError
 from requests.exceptions import ConnectionError as rConnectionError
 from urllib3.util.retry import Retry
 from urllib3.exceptions import MaxRetryError
-from exec import (
+from exceptions import (
     GeoNamesError,
     GeoNamesHTTPError,
     GeoNamesRetryError,
@@ -16,6 +16,7 @@ from exec import (
     GeoNamesConnectionError,
     GeoNamesDateReturnError,
 )
+from constants import URLs, Timeouts, APILimits
 
 
 APP_NAME = "fmsave"
@@ -35,12 +36,12 @@ EMPTY_TZ_DICT = {
 class GeoNames:
     """sGeonames API functionality"""
 
-    url = "https://secure.geonames.org/timezoneJSON"
+    url = URLs.GEONAMES_TIMEZONE
 
     def __init__(
         self,
         username,
-        timeout=1,
+        timeout=Timeouts.API_CALL_DEFAULT,
         user_agent=None,
     ):
         """
@@ -59,7 +60,7 @@ class GeoNames:
         self.user_agent = (user_agent,)
         self.username = username
 
-    def _call_geonames(self, url, params, callback, timeout=1, maxretries=3):
+    def _call_geonames(self, url, params, callback, timeout=Timeouts.API_CALL_DEFAULT, maxretries=APILimits.MAX_RETRIES):
         self.logger.debug("Sending request to url: %s\nparams: %s", url, params)
         retry_strategy = Retry(
             total=maxretries,
@@ -152,7 +153,7 @@ class GeoNames:
 
         return resp_dict
 
-    def find_tz(self, lat, lon, date, timeout=1, maxretries=3):
+    def find_tz(self, lat, lon, date, timeout=Timeouts.API_CALL_DEFAULT, maxretries=APILimits.MAX_RETRIES):
         """
         Find the timezone for a lat, lon and date
 

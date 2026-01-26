@@ -250,12 +250,12 @@ def fuzzy_merge(df_l, df_r, key_l, key_r, threshold=95, limit=10):
     sequences = df_r[key_r].tolist()
 
     matches = df_l[key_l].apply(lambda x: process.extract(x, sequences, limit=limit))
-    df_l["matches"] = matches
+    df_l.loc[:, "matches"] = matches
 
     matches_2 = df_l["matches"].apply(
         lambda x: ", ".join(i[0] for i in x if i[1] >= threshold)
     )
-    df_l["matches"] = matches_2
+    df_l.loc[:, "matches"] = matches_2
 
     return df_l
 

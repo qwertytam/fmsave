@@ -1136,12 +1136,14 @@ class FMDownloader:
         self.df = pd.read_csv(fp, dtype=col_types)
 
         for col in datetime_cols:
-            self.df[col] = pd.to_datetime(
-                self.df[col], format="ISO8601", yearfirst=True
-            )
+            if col in self.df.columns:
+                self.df[col] = pd.to_datetime(
+                    self.df[col], format="mixed", dayfirst=False, errors="coerce"
+                )
 
         for col in timedelata_cols:
-            self.df[col] = pd.to_timedelta(self.df[col])
+            if col in self.df.columns:
+                self.df[col] = pd.to_timedelta(self.df[col], errors="coerce")
 
         self.logger.debug("Have read in csv; df types:\n%s", self.df.dtypes)
 

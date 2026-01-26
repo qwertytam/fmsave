@@ -598,7 +598,7 @@ class FMDownloader:
         for idx, comment in comments:
             self.df.loc[idx, "comment"] = comment
         
-        self.df["comment"] = self.df["comment"].str.replace(r"\n", "", regex=True)
+        self.df.loc[:, "comment"] = self.df["comment"].str.replace(r"\n", "", regex=True)
 
     def links_from_options(self, table) -> list[str]:
         """
@@ -693,7 +693,7 @@ class FMDownloader:
         self._get_date_filter(dates_before, dates_after)
 
         comments = self.df.loc[self.df["date_filter"], "comments"]
-        self.df["comment"] = ""
+        self.df.loc[:, "comment"] = ""
         self.logger.info("We have %s notes", comments.sum())
         if comments.sum() > 0:
             self.get_comments("date_filter")
@@ -1042,12 +1042,13 @@ class FMDownloader:
         else:
             self.logger.debug("Adding new_cols: %s", new_cols)
             for new_col in new_cols:
-                self.df[new_col] = ""
+                self.df.loc[:, new_col] = ""
 
         # Determine which rows we want to update
         if update_blanks_only:
+            # Check for empty strings or NaN values in timezone columns
             rows_to_update = (
-                self.df[tz_cols].replace("", np.nan, inplace=False).isna().any(axis=1)
+                self.df[tz_cols].apply(lambda x: x.isna() | (x == "")).any(axis=1)
             )
             rows_to_update = rows_to_update & (
                 (self.df["dt_info"] == lookups.DateTimeInfo.DT_INFO_YMDT.value)

@@ -1380,7 +1380,7 @@ class FMDownloader:
         col_renames = utils.swap_keys_values(col_renames)
 
         # Initialize date_as_str column
-        exp_df["date_as_str"] = ""
+        exp_df.loc[:, "date_as_str"] = ""
 
         for fmt_key, _ in lookups.DT_FMTS.items():
             fmt_rows = exp_df["dt_info"] == fmt_key
@@ -1397,21 +1397,28 @@ class FMDownloader:
             # Ensure column is datetime type before using .dt accessor
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+                exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
-            # Now safely use .dt accessor
+            # Now safely use .dt accessor with .loc
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_fmt)
 
         exp_cols = utils.get_keys(col_renames)
         exp_cols = [x for x in exp_cols if x in set(exp_df.columns)]
         exp_df = exp_df[exp_cols].rename(columns=col_renames)
 
-        exp_df["Duration"] = exp_df["Duration"].dt.to_pytimedelta().astype("str")
-        exp_df["Distance"] = exp_df["Distance"].apply(utils.km_to_miles)
-        exp_df["Distance"] = exp_df["Distance"].astype("int64")
-        exp_df["Class"] = exp_df["Class"].replace(lookups.CLASS_OPENFLIGHTS_LU)
-        exp_df["Reason"] = exp_df["Reason"].replace(lookups.REASON_OPENFLIGHTS_LU)
-        exp_df["Seat_Type"] = exp_df["Seat_Type"].replace(lookups.SEAT_OPENFLIGHTS_LU)
+        # Handle Duration column - check if it's a timedelta type
+        if "Duration" in exp_df.columns:
+            if pd.api.types.is_timedelta64_any_dtype(exp_df["Duration"]):
+                exp_df.loc[:, "Duration"] = exp_df["Duration"].dt.to_pytimedelta().astype("str")
+            else:
+                # If Duration is already a string (e.g., loaded from CSV), convert via timedelta
+                exp_df.loc[:, "Duration"] = pd.to_timedelta(exp_df["Duration"], errors='coerce').dt.to_pytimedelta().astype("str")
+        
+        exp_df.loc[:, "Distance"] = exp_df["Distance"].apply(utils.km_to_miles)
+        exp_df.loc[:, "Distance"] = exp_df["Distance"].astype("int64")
+        exp_df.loc[:, "Class"] = exp_df["Class"].replace(lookups.CLASS_OPENFLIGHTS_LU)
+        exp_df.loc[:, "Reason"] = exp_df["Reason"].replace(lookups.REASON_OPENFLIGHTS_LU)
+        exp_df.loc[:, "Seat_Type"] = exp_df["Seat_Type"].replace(lookups.SEAT_OPENFLIGHTS_LU)
 
         col_loc = exp_df.columns.get_loc("Registration") + 1
         exp_df.insert(loc=col_loc, column="Trip", value="")
@@ -1424,7 +1431,8 @@ class FMDownloader:
     def _export_to_myflightpath(self, fsave: str) -> None:
         exp_format = "myflightpath"
 
-        exp_df = self.df
+        # Make explicit copy to avoid CoW issues
+        exp_df = self.df.copy()
 
         exp_data_dict = data.get_yaml(exp_format, exp_format, logger=self.logger)
         col_renames = utils.get_parents_with_key_values(
@@ -1433,7 +1441,7 @@ class FMDownloader:
         col_renames = utils.swap_keys_values(col_renames)
 
         # Initialize date_as_str column
-        exp_df["date_as_str"] = ""
+        exp_df.loc[:, "date_as_str"] = ""
 
         for fmt_key, _ in lookups.DT_FMTS.items():
             fmt_rows = exp_df["dt_info"] == fmt_key
@@ -1450,9 +1458,9 @@ class FMDownloader:
             # Ensure column is datetime type before using .dt accessor
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+                exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
-            # Now safely use .dt accessor
+            # Now safely use .dt accessor with .loc
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[
                 fmt_rows, dt_col
             ].dt.strftime(dt_dmt)
@@ -1466,23 +1474,23 @@ class FMDownloader:
             if time_col in exp_df.columns:
                 if not pd.api.types.is_datetime64_any_dtype(exp_df[time_col]):
                     self.logger.debug("Converting %s to datetime", time_col)
-                    exp_df[time_col] = pd.to_datetime(exp_df[time_col], errors='coerce')
-                exp_df[time_col] = exp_df[time_col].dt.strftime("%H:%M")
+                    exp_df.loc[:, time_col] = pd.to_datetime(exp_df[time_col], errors='coerce')
+                exp_df.loc[:, time_col] = exp_df[time_col].dt.strftime("%H:%M")
 
-        exp_df["duration"] = exp_df["duration"].apply(
+        exp_df.loc[:, "duration"] = exp_df["duration"].apply(
             lambda x: utils.strfdelta(x, "{H:02}:{M:02}")
         )
-        exp_df["distance"] = exp_df["distance"].apply(
+        exp_df.loc[:, "distance"] = exp_df["distance"].apply(
             lambda x: int(utils.km_to_miles(x))
         )
 
         exp_df = exp_df.fillna("")
 
-        exp_df["seat_type"] = exp_df["seat_type"].str.lower()
-        exp_df["class"] = exp_df["class"].replace(lookups.CLASS_MYFLIGHTPATH_LU)
-        exp_df["reason"] = exp_df["reason"].replace(lookups.REASON_MYFLIGHTPATH_LU)
+        exp_df.loc[:, "seat_type"] = exp_df["seat_type"].str.lower()
+        exp_df.loc[:, "class"] = exp_df["class"].replace(lookups.CLASS_MYFLIGHTPATH_LU)
+        exp_df.loc[:, "reason"] = exp_df["reason"].replace(lookups.REASON_MYFLIGHTPATH_LU)
 
-        exp_df["is_public"] = "Y"
+        exp_df.loc[:, "is_public"] = "Y"
 
         exp_df.to_csv(fsave, index=False, encoding="utf-8")
         self.logger.info(

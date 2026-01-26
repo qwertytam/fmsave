@@ -55,7 +55,8 @@ def get_openflights_data(
                 of_data[col] = of_data[col].astype(dtype)
             except (ValueError, TypeError):
                 # If conversion fails, try converting to numeric for float columns
-                if dtype in (float, 'float', 'float64'):
+                # Check for float type (handles float, 'float', 'float64')
+                if dtype == float or (isinstance(dtype, str) and 'float' in dtype.lower()):
                     of_data[col] = pd.to_numeric(of_data[col], errors='coerce')
                 else:
                     logger.warning(f"Could not convert column {col} to {dtype}")

@@ -1,9 +1,12 @@
 """Providing data manipulation functionality"""
 
+from __future__ import annotations
+
 import logging
 import re
 from pathlib import Path
 import io
+from typing import Any
 import requests
 from functools import lru_cache
 from thefuzz import process
@@ -33,7 +36,11 @@ OPENFLIGHTS_FILE_EXT = FileExtensions.DAT
 WIKI_DATA_FP_BASE = mpath.parent / "data/wiki/"
 
 
-def get_yaml(fp, fn, logger=module_logger):
+def get_yaml(
+    fp: str,
+    fn: str,
+    logger: logging.Logger = module_logger,
+) -> dict[str, Any]:
     """
     Read in yaml
 
@@ -52,7 +59,7 @@ def get_yaml(fp, fn, logger=module_logger):
     return y
 
 
-def _write_data(fp, data, logger=module_logger):
+def _write_data(fp: Path | str, data: bytes, logger: logging.Logger = module_logger) -> Path:
     fp = Path(fp).resolve()
     logger.debug("Writing data to: %s", fp)
     with open(fp, mode="wb") as f:
@@ -62,11 +69,11 @@ def _write_data(fp, data, logger=module_logger):
 
 
 def update_ourairport_data(
-    url=URLs.OURAIRPORTS_DATA,
-    fp=OURAIRPORTS_DATA_FILEPATH,
-    timeout=Timeouts.GEONAMES_DEFAULT,
-    logger=module_logger,
-):
+    url: str = URLs.OURAIRPORTS_DATA,
+    fp: Path = OURAIRPORTS_DATA_FILEPATH,
+    timeout: int = Timeouts.GEONAMES_DEFAULT,
+    logger: logging.Logger = module_logger,
+) -> None:
     """
     Update airports data set, typically using OurAirports data
 
@@ -84,7 +91,10 @@ def update_ourairport_data(
     logger.info("Completed update or airport data from '%s'", url)
 
 
-def update_openflights_data(timeout=Timeouts.GEONAMES_DEFAULT, logger=module_logger):
+def update_openflights_data(
+    timeout: int = Timeouts.GEONAMES_DEFAULT,
+    logger: logging.Logger = module_logger,
+) -> None:
     """
     Update openflights data set
 
@@ -105,7 +115,11 @@ def update_openflights_data(timeout=Timeouts.GEONAMES_DEFAULT, logger=module_log
     logger.info("Completed update")
 
 
-def _dl_wikipedia_table(page, table_no, logger=module_logger):
+def _dl_wikipedia_table(
+    page: str,
+    table_no: int,
+    logger: logging.Logger = module_logger,
+) -> pd.DataFrame:
     logger.debug("Downloading wiki table number %s from %s", table_no, page)
     html = wp.page(page).html()  # .encode("UTF-8")
     sio = io.StringIO(html)
@@ -113,7 +127,7 @@ def _dl_wikipedia_table(page, table_no, logger=module_logger):
     return df
 
 
-def dl_aircraft_codes(logger=module_logger):
+def dl_aircraft_codes(logger: logging.Logger = module_logger) -> None:
     """
     Download ICAO and IATA codes from wikipedia
 
@@ -145,15 +159,23 @@ def dl_aircraft_codes(logger=module_logger):
     logger.info("Completed download of aircraft codes")
 
 
-def _get_data(filepath, **kwargs):
+def _get_data(
+    filepath: Path,
+    header: int | None = 0,
+    index_col: int | bool | None = None,
+    na_values: list[str] | None = None,
+    **kwargs: Any,
+) -> pd.DataFrame:
     filepath = Path(filepath).resolve()
     return pd.read_csv(filepath, **kwargs)
 
 
 @lru_cache(maxsize=8)
 def get_openflights_data(
-    data_set=OPENFLIGHTS_DATA_SETS[0], header=None, supplemental=False
-):
+    data_set: str = OPENFLIGHTS_DATA_SETS[0],
+    header: int | None = None,
+    supplemental: bool = False,
+) -> pd.DataFrame:
     """
     Get open flights data from module data set
 
@@ -172,7 +194,9 @@ def get_openflights_data(
 
 
 @lru_cache(maxsize=1)
-def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH):
+def get_ourairport_data(
+    airport_data_file: Path = OURAIRPORTS_DATA_FILEPATH,
+) -> pd.DataFrame:
     """
     Get airports data from module data set
 
@@ -187,8 +211,14 @@ def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH):
 
 
 def select_fuzzy_match(
-    df, find_str, find_col, display_cols, col_widths, limit=10, logger=module_logger
-):
+    df: pd.DataFrame,
+    find_str: str,
+    find_col: str,
+    display_cols: list[str],
+    col_widths: list[int],
+    limit: int = 10,
+    logger: logging.Logger = module_logger,
+) -> pd.DataFrame | None:
     """
     Find and select fuzzy match
 
@@ -226,7 +256,14 @@ def select_fuzzy_match(
     return sel_row
 
 
-def fuzzy_merge(df_l, df_r, key_l, key_r, threshold=95, limit=10):
+def fuzzy_merge(
+    df_l: pd.DataFrame,
+    df_r: pd.DataFrame,
+    key_l: str,
+    key_r: str,
+    threshold: int = 95,
+    limit: int = 10,
+) -> pd.DataFrame:
     """
     Merge two data frames based on fuzzy logic matching
 
@@ -261,7 +298,7 @@ def fuzzy_merge(df_l, df_r, key_l, key_r, threshold=95, limit=10):
 
 
 @lru_cache(maxsize=4)
-def get_wiki_data(data_set="aircraft", header=0):
+def get_wiki_data(data_set: str = "aircraft", header: int = 0) -> pd.DataFrame:
     """
     Get open flights data from wiki
 
@@ -285,7 +322,7 @@ def get_wiki_data(data_set="aircraft", header=0):
     return df
 
 
-def clear_data_caches():
+def clear_data_caches() -> None:
     """Clear all cached data. Call this after updating reference data files."""
     get_ourairport_data.cache_clear()
     get_openflights_data.cache_clear()

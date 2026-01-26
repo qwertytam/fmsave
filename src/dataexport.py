@@ -44,6 +44,8 @@ def get_openflights_data(
     of_data.columns = col_names
     
     # Replace any remaining null markers with NaN before type conversion
+    # Note: While data.get_openflights_data() uses na_values parameter,
+    # some null markers may still appear as strings in the data
     of_data = of_data.replace(["\\N", "-", ""], pd.NA)
     
     # Convert types, using errors='ignore' for columns that can't be converted
@@ -53,7 +55,7 @@ def get_openflights_data(
                 of_data[col] = of_data[col].astype(dtype)
             except (ValueError, TypeError):
                 # If conversion fails, try converting to numeric for float columns
-                if dtype == float:
+                if dtype in (float, 'float', 'float64'):
                     of_data[col] = pd.to_numeric(of_data[col], errors='coerce')
                 else:
                     logger.warning(f"Could not convert column {col} to {dtype}")

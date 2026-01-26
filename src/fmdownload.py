@@ -15,7 +15,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 import numpy as np
 import pandas as pd
 
@@ -102,7 +102,7 @@ class FMDownloader:
         if self.driver is not None:
             try:
                 self.driver.quit()
-            except Exception as e:
+            except WebDriverException as e:
                 self.logger.warning("Error closing WebDriver: %s", e)
             self.driver = None
 

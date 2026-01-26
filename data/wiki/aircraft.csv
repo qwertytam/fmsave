@@ -5,7 +5,7 @@ A148,A81,Antonov An-148
 A158,A58,Antonov An-158
 A19N,31N,Airbus A319neo
 A20N,32N,Airbus A320neo
-A21N,32Q,Airbus A321neo
+A21N,32Q,Airbus A321neo/LR/XLR
 A225,A5F,Antonov An-225 Mriya
 A306,AB6,Airbus A300-600
 A306,ABY,Airbus A300-600 Freighter[4]
@@ -35,7 +35,7 @@ A359,359,Airbus A350-900
 A35K,351,Airbus A350-1000
 A388,388,Airbus A380-800
 A3ST,ABB,"Airbus A300-600ST ""Super Transporter"" / ""Beluga"""
-A400,,Airbus A400M Atlas
+A400,—N/a,Airbus A400M Atlas
 A748,HS7,Hawker Siddeley HS 748
 AC90,ACT,Gulfstream/Rockwell (Aero) Turbo Commander 690
 AJ27,C27,Comac ARJ21-700 / C909
@@ -62,7 +62,7 @@ B3XM,7MJ,Boeing 737 MAX 10
 B461,141,BAe 146-100
 B462,142,BAe 146-200
 B463,143,BAe 146-300
-B52,,Boeing B-52 Stratofortress
+B52,—N/a,Boeing B-52 Stratofortress
 B703,703,Boeing 707
 B712,717,Boeing 717
 B720,B72,Boeing 720B
@@ -108,8 +108,8 @@ B752,75W,Boeing 757-200 Winglets[4]
 B753,753,Boeing 757-300
 B762,762,Boeing 767-200 / Boeing 767-200ER
 B762,76X,Boeing 767-200 Freighter / Boeing 767-200ER
-B763,763,Boeing 767-300
-B763,76W,Boeing 767-300 Winglets / Boeing 767-300ER
+B763,763,Boeing 767-300 / Boeing 767-300ER
+B763,76W,Boeing 767-300ER Winglets
 B763,76Y,Boeing 767-300 Freighter
 B764,764,Boeing 767-400ER
 B772,772,Boeing 777-200 / Boeing 777-200ER
@@ -125,19 +125,21 @@ B78X,781,Boeing 787-10
 BA11,B11,British Aerospace (BAC) One Eleven
 BCS1,221,Bombardier CSeries CS100 / Airbus A220-100
 BCS3,223,Bombardier CSeries CS300 / Airbus A220-300
-BE20,—,Beechcraft (Super) King Air 200
-BE40,—,Hawker 400
-BE99,,Beechcraft Model 99
+BE20,—N/a,Beechcraft (Super) King Air 200
+BE40,—N/a,Hawker 400
+BE99,—N/a,Beechcraft Model 99
 BELF,SHB,Shorts SC-5 Belfast
-BER2,—,Beriev Be-200 Altair
+BER2,—N/a,Beriev Be-200 Altair
 BLCF,74B,Boeing 747-400 LCF Dreamlifter
 C130,LOH,Lockheed L-182 / 282 / 382 (L-100) Hercules
+C208,—N/a,Cessna 208 Caravan
 C212,CS2,CASA / IPTN 212 Aviocar
 C25A,CNJ,Cessna Citation CJ2
 C25B,CNJ,Cessna Citation CJ3
 C25C,CNJ,Cessna Citation CJ4
 C30J,LOH,Lockheed Martin C-130J Hercules
-C5M,,Lockheed C-5M Super Galaxy
+C408,—N/a,Cessna 408 SkyCourier
+C5M,—N/a,Lockheed C-5M Super Galaxy
 C500,CNJ,Cessna Citation I
 C510,CNJ,Cessna Citation Mustang
 C525,CNJ,Cessna CitationJet
@@ -150,8 +152,9 @@ C68A,CNJ,Cessna Citation Latitude
 C700,CNJ,Cessna Citation Longitude
 C750,CNJ,Cessna Citation X
 C919,919,Comac C919
-CL2T,—,Bombardier 415
-CL30,—,Bombardier BD-100 Challenger 300
+CL2T,—N/a,Bombardier 415
+CL30,—N/a,Bombardier BD-100 Challenger 300
+CL35,—N/a,Bombardier BD-100 Challenger 350
 CL60,CCJ,Canadair Challenger 600
 CN35,CS5,CASA/IPTN CN-235
 CRJ1,CR1,Canadair Regional Jet 100
@@ -194,12 +197,12 @@ E290,290,Embraer E190-E2
 E295,295,Embraer E195-E2
 E35L,ER3,Embraer Legacy 600 / Legacy 650
 E50P,EP1,Embraer Phenom 100
-E545,—,Embraer Legacy 450 / Praetor 500
-E550,—,Embraer Legacy 500 / Praetor 600
+E545,—N/a,Embraer Legacy 450 / Praetor 500
+E550,—N/a,Embraer Legacy 500 / Praetor 600
 E55P,EP3,Embraer Phenom 300
 E75L,E7W,Embraer 175 (long wing)
 E75S,E75,Embraer 175 (short wing)
-EA50,,Eclipse 500
+EA50,—N/a,Eclipse 500
 F100,100,Fokker 100
 F27,F27,Fokker F27 Friendship
 F28,F21,Fokker F28 Fellowship
@@ -214,12 +217,12 @@ FA7X,DF7,Dassault Falcon 7X
 G159,GRS,Gulfstream Aerospace G-159 Gulfstream I
 G280,GR3,Gulfstream G280
 G73T,GRM,Grumman G-73 Turbo Mallard
-GL5T,CCX,Bombardier BD-700 Global 5000
+GL5T,CCX,Bombardier Global 5000
 GLEX,CCX,Bombardier Global Express / Raytheon Sentinel
 GLF4,GJ4,Gulfstream IV
 GLF5,GJ5,Gulfstream V
 GLF6,GJ6,Gulfstream G650
-GA7C,,Gulfstream G700
+GA7C,GL7,Gulfstream G700
 H25B,H25,British Aerospace 125 series / Hawker/Raytheon 700/800/800XP/850/900
 H25C,H25,British Aerospace 125-1000 series / Hawker/Raytheon 1000
 HDJT,HHJ,Honda HA-420
@@ -251,9 +254,10 @@ MD90,M90,McDonnell Douglas MD-90
 MU2,MU2,Mitsubishi Mu-2
 N262,ND2,Aerospatiale (Nord) 262
 NOMA,CD2,Government Aircraft Factories N22B / N24A Nomad
-P8,—,Boeing P-8 Poseidon
+P8,—N/a,Boeing P-8 Poseidon
 P180,P18,Piaggio P.180 Avanti
-PAY2,—,PIPER Cheyenne 2
+PAY2,—N/a,PIPER Cheyenne 2
+PC12,PL2,Pilatus PC-12
 PC24,PL4,Pilatus PC-24
 RJ1H,AR1,Avro RJ100
 RJ70,AR7,Avro RJ70

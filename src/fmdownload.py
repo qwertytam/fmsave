@@ -1048,7 +1048,7 @@ class FMDownloader:
         if update_blanks_only:
             # Check for empty strings or NaN values in timezone columns
             rows_to_update = (
-                self.df[tz_cols].apply(lambda x: x.isna() | (x == "")).any(axis=1)
+                (self.df[tz_cols].isna() | (self.df[tz_cols] == "")).any(axis=1)
             )
             rows_to_update = rows_to_update & (
                 (self.df["dt_info"] == lookups.DateTimeInfo.DT_INFO_YMDT.value)

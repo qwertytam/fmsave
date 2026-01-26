@@ -12,6 +12,9 @@ from functools import lru_cache
 from thefuzz import process
 import pandas as pd
 import yaml
+
+# Opt-in to future pandas behavior to avoid FutureWarning
+pd.set_option('future.no_silent_downcasting', True)
 import wikipedia as wp
 
 import utils

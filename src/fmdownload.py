@@ -23,6 +23,9 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 import numpy as np
 import pandas as pd
 
+# Opt-in to future pandas behavior to avoid FutureWarning
+pd.set_option('future.no_silent_downcasting', True)
+
 from geonames import GeoNames
 from geonames import GeoNamesDateReturnError
 from geonames import EMPTY_TZ_DICT

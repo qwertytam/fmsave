@@ -6,6 +6,9 @@ import logging
 import pandas as pd
 from thefuzz import process
 
+# Opt-in to future pandas behavior to avoid FutureWarning
+pd.set_option('future.no_silent_downcasting', True)
+
 import data
 import utils
 import lookups
@@ -37,9 +40,24 @@ def get_openflights_data(
     of_data = data.get_openflights_data(
         data_set, supplemental=supplemental
     )
-    # Apply column names and types after loading
+    # Apply column names first
     of_data.columns = col_names
-    of_data = of_data.astype(col_types)
+    
+    # Replace any remaining null markers with NaN before type conversion
+    of_data = of_data.replace(["\\N", "-", ""], pd.NA)
+    
+    # Convert types, using errors='ignore' for columns that can't be converted
+    for col, dtype in col_types.items():
+        if col in of_data.columns:
+            try:
+                of_data[col] = of_data[col].astype(dtype)
+            except (ValueError, TypeError):
+                # If conversion fails, try converting to numeric for float columns
+                if dtype == float:
+                    of_data[col] = pd.to_numeric(of_data[col], errors='coerce')
+                else:
+                    logger.warning(f"Could not convert column {col} to {dtype}")
+    
     return of_data
 
 

@@ -15,7 +15,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 import numpy as np
 import pandas as pd
 
@@ -97,6 +97,24 @@ class FMDownloader:
         self.fm_pw = None
         self.fm_un = None
 
+    def close(self):
+        """Close the WebDriver and release resources."""
+        if self.driver is not None:
+            try:
+                self.driver.quit()
+            except WebDriverException as e:
+                self.logger.warning("Error closing WebDriver: %s", e)
+            self.driver = None
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensures WebDriver is closed."""
+        self.close()
+        return False
+
     def login(
         self,
         username=None,
@@ -147,8 +165,12 @@ class FMDownloader:
             ).click()
             self.logger.info("Found 'FLIGHTDATA'; assumed login successful")
             self.logged_in = True
+            # Clear password from memory after successful login
+            self.fm_pw = None
         except TimeoutException:
             self.logger.error("TimeoutException: Assuming wrong credentials; exiting")
+            # Clear password even on failure
+            self.fm_pw = None
             sys.exit()
 
     def _get_number_of_pages(self):
@@ -552,8 +574,8 @@ class FMDownloader:
             )
             if self.fm_un is None:
                 self.fm_un = logins.get_fm_un()
-            if self.fm_pw is None:
-                self.fm_pw = logins.get_fm_pw()
+            # Always prompt for password since it's cleared after login (both success and failure)
+            self.fm_pw = logins.get_fm_pw()
             self.login()
 
         loop_counter = 0

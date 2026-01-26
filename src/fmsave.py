@@ -315,73 +315,79 @@ if __name__ == "__main__":
     # For other commands, initialize FMDownloader
     CHROME_PATH = cfg.get_chrome_path(args["<chrome_path>"])
     fd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
+    
+    try:
+        if dlhtml:
+            fm_un = cfg.get_flightmemory_username(args["<fm_un>"])
+            if fm_un is None:
+                print("Error: FlightMemory username required. Provide via argument, config file, or FMSAVE_FM_USERNAME environment variable.")
+                sys.exit(1)
+            fd.fm_un = fm_un
+            save_path = args["<save_path>"]
+            max_pages = args["--max-pages"]
+            if max_pages is not None:
+                max_pages = int(max_pages)
 
-    if dlhtml:
-        fm_un = cfg.get_flightmemory_username(args["<fm_un>"])
-        if fm_un is None:
-            print("Error: FlightMemory username required. Provide via argument, config file, or FMSAVE_FM_USERNAME environment variable.")
-            sys.exit(1)
-        fd.fm_un = fm_un
-        save_path = args["<save_path>"]
-        max_pages = args["--max-pages"]
-        if max_pages is not None:
-            max_pages = int(max_pages)
+            dl_html(fd, max_pages, save_path)
 
-        dl_html(fd, max_pages, save_path)
+        if export:
+            exp_format = args["<exp_format>"]
+            export_to(fd, exp_format, fread, fsave)
 
-    if export:
-        exp_format = args["<exp_format>"]
-        export_to(fd, exp_format, fread, fsave)
+        if tocsv:
+            gn_un = cfg.get_geonames_username(args["<gn_un>"])
+            if gn_un is None:
+                print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
+                sys.exit(1)
+            if fsave is None:
+                fsave = fread
+            html_to_csv(fd, gn_un, read_path, fsave)
 
-    if tocsv:
-        gn_un = cfg.get_geonames_username(args["<gn_un>"])
-        if gn_un is None:
-            print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
-            sys.exit(1)
-        if fsave is None:
-            fsave = fread
-        html_to_csv(fd, gn_un, read_path, fsave)
+        if upair:
+            airurl = args["<airurl>"]
+            if airurl is None:
+                update_ourairport_data(logger=logger)
+            else:
+                update_ourairport_data(url=airurl, logger=logger)
 
-    if upair:
-        airurl = args["<airurl>"]
-        if airurl is None:
-            update_ourairport_data(logger=logger)
-        else:
-            update_ourairport_data(url=airurl, logger=logger)
+        if upcsv:
+            gn_un = cfg.get_geonames_username(args["<gn_un>"])
+            if gn_un is None:
+                print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
+                sys.exit(1)
+            if fsave is None:
+                fsave = fread
 
-    if upcsv:
-        gn_un = cfg.get_geonames_username(args["<gn_un>"])
-        if gn_un is None:
-            print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
-            sys.exit(1)
-        if fsave is None:
-            fsave = fread
+            dbf = args["--before"]
+            daf = args["--after"]
 
-        dbf = args["--before"]
-        daf = args["--after"]
+            dbf = None if dbf is None else utils.date_to_dt(dbf)
+            daf = None if daf is None else utils.date_to_dt(daf)
 
-        dbf = None if dbf is None else utils.date_to_dt(dbf)
-        daf = None if daf is None else utils.date_to_dt(daf)
+            fdd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
+            try:
+                update_csv(fd, fdd, gn_un, read_path, fread, fsave, dbf, daf)
+            finally:
+                fdd.close()
 
-        fdd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
-        update_csv(fd, fdd, gn_un, read_path, fread, fsave, dbf, daf)
+        if upof:
+            update_openflights_data(logger=logger)
 
-    if upof:
-        update_openflights_data(logger=logger)
+        if uptz:
+            gn_un = cfg.get_geonames_username(args["<gn_un>"])
+            if gn_un is None:
+                print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
+                sys.exit(1)
+            if fsave is None:
+                fsave = fread
+            update_tz(fd, gn_un, fread, fsave)
 
-    if uptz:
-        gn_un = cfg.get_geonames_username(args["<gn_un>"])
-        if gn_un is None:
-            print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
-            sys.exit(1)
-        if fsave is None:
-            fsave = fread
-        update_tz(fd, gn_un, fread, fsave)
+        if validate:
+            if fsave is None:
+                fsave = fread
+            validate_dist_times(fd, fread, fsave)
 
-    if validate:
-        if fsave is None:
-            fsave = fread
-        validate_dist_times(fd, fread, fsave)
-
-    if upwiki:
-        update_wiki()
+        if upwiki:
+            update_wiki()
+    finally:
+        fd.close()

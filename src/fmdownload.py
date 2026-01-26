@@ -716,7 +716,7 @@ class FMDownloader:
             inplace=True,
         )
 
-        self.df = self.df.replace(r"^\s*$", np.nan, regex=True)
+        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(copy=False)
         self.df.loc[:, "ts"] = dt.now()
 
     def _try_keyword_lat_lon(self, airport_data):
@@ -775,7 +775,7 @@ class FMDownloader:
 
             self.df.loc[narows, to_cols] = airport_data.loc[res_rows, from_cols].values
 
-        self.df = self.df.replace(r"^\s*$", np.nan, regex=True)
+        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(copy=False)
 
     def _fuzzy_match_airports(self, airport_data, filter_col=None):
         row_filter = self.df[["lat_dep", "lat_arr"]].isna().any(axis=1)
@@ -893,7 +893,7 @@ class FMDownloader:
             }
         )
 
-        self.df = self.df.replace(r"^\s*$", np.nan, regex=True)
+        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(copy=False)
         self.logger.debug(
             "Have added airport lat and lon data now have:\n%s", self.df.dtypes
         )

@@ -1,5 +1,7 @@
 """Main module to hold functions to download and maniuplate flightmemory data"""
 
+from __future__ import annotations
+
 from datetime import datetime as dt
 import io
 import logging
@@ -7,6 +9,8 @@ import math
 from pathlib import Path
 import re
 import sys
+from typing import Any, Optional
+from collections.abc import Sequence
 
 
 from bs4 import BeautifulSoup as bs
@@ -73,7 +77,7 @@ RE_NOTE = re.compile(r"Note ")
 RE_VALID_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
-def _get_str_for_pd(page):
+def _get_str_for_pd(page: str) -> Any:
     sio = io.StringIO(page)
     soup = bs(sio, "html5lib")
     flight_tbl = soup.select_one(".container").find_all("table", recursive=False)[1]
@@ -96,11 +100,22 @@ def _check_count(current_run_status: bool, count: int, limit: int) -> bool:
 class FMDownloader:
     """Main class to use instances to download and maniuplate fm data"""
 
+    # Class attribute type hints
+    logger: logging.Logger
+    options: webdriver.ChromeOptions
+    driver: Optional[webdriver.Chrome]
+    pages: list[str]
+    df: pd.DataFrame
+    fms_data_dict: dict[str, Any]
+    logged_in: bool
+    fm_pw: Optional[str]
+    fm_un: Optional[str]
+
     def __init__(
         self,
-        chrome_path,
-        chrome_args,
-    ):
+        chrome_path: str,
+        chrome_args: Sequence[str],
+    ) -> None:
         """
         Args:
             chrome_path: Path to Chrome browser executable
@@ -128,7 +143,7 @@ class FMDownloader:
         self.fm_pw = None
         self.fm_un = None
 
-    def close(self):
+    def close(self) -> None:
         """Close the WebDriver and release resources."""
         if self.driver is not None:
             try:
@@ -137,22 +152,27 @@ class FMDownloader:
                 self.logger.warning("Error closing WebDriver: %s", e)
             self.driver = None
 
-    def __enter__(self):
+    def __enter__(self) -> "FMDownloader":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ) -> bool:
         """Context manager exit - ensures WebDriver is closed."""
         self.close()
         return False
 
     def login(
         self,
-        username=None,
-        password=None,
-        login_page=URLs.FLIGHT_MEMORY_LOGIN,
-        timeout=Timeouts.LOGIN,
-    ):
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        login_page: str = URLs.FLIGHT_MEMORY_LOGIN,
+        timeout: int = Timeouts.LOGIN,
+    ) -> None:
         """
         Log into Flight Memory website
 
@@ -204,22 +224,26 @@ class FMDownloader:
             self.fm_pw = None
             sys.exit()
 
-    def _get_number_of_pages(self):
+    def _get_number_of_pages(self) -> int:
         select_element = self.driver.find_element(By.XPATH, '//select[@name="dbpos"]')
         select = Select(select_element)
         return len(select.options)
 
-    def _get_outer_html(self):
+    def _get_outer_html(self) -> None:
         self.pages.append(self.driver.execute_script(WDSCRIPT_OUTER_HTML))
 
-    def _get_next_page(self, last_page_timeout=10):
+    def _get_next_page(self, last_page_timeout: int = 10) -> None:
         WebDriverWait(self.driver, last_page_timeout).until(
             EC.element_to_be_clickable(
                 (By.XPATH, "//img[contains(@src,'/images/next.gif')]")
             )
         ).click()
 
-    def get_fm_pages(self, max_pages=None, last_page_timeout=Timeouts.LAST_PAGE):
+    def get_fm_pages(
+        self,
+        max_pages: Optional[int] = None,
+        last_page_timeout: int = Timeouts.LAST_PAGE,
+    ) -> None:
         """
         Get html pages from Flight Memory website
 
@@ -267,7 +291,12 @@ class FMDownloader:
         pages_len = len(self.pages)
         self.logger.info("Found %s pages and read %s in", found_pages, pages_len)
 
-    def save_fm_pages(self, save_path: str, prefix="flightmemory", fext="html"):
+    def save_fm_pages(
+        self,
+        save_path: str,
+        prefix: str = "flightmemory",
+        fext: str = "html",
+    ) -> None:
         """
         Save html pages
 
@@ -290,7 +319,7 @@ class FMDownloader:
 
         self.logger.info("Saved %s pages to %s", total_pages, save_path)
 
-    def read_fm_pages(self, read_path: str, fext="html"):
+    def read_fm_pages(self, read_path: str, fext: str = "html") -> None:
         """
         Read in Flight Memory html pages from disk
 
@@ -316,7 +345,7 @@ class FMDownloader:
 
         self.logger.info("Have read in %s pages", len(self.pages))
 
-    def _split_date_col(self):
+    def _split_date_col(self) -> None:
         # Column has the following formats
         # Year only: YYYY or in regex r'^\d{4}'
         # Date only: DD-MM-YYYY or r'^\d{2}\.\d{2}\.\d{4}$'
@@ -395,13 +424,13 @@ class FMDownloader:
             pat=RE_EMPTY_STRING, repl="0", regex=True
         )
 
-    def _split_dist_col(self):
+    def _split_dist_col(self) -> None:
         self.df.loc[:, ["dist", "dist_units", "duration", "duration_units"]] = self.df[
             "dist_duration"
         ].str.split("\\|\\|", expand=True).values
         self.df.loc[:, "dist"] = pd.to_numeric(self.df["dist"].str.replace(",", ""))
 
-    def _split_seat_col(self):
+    def _split_seat_col(self) -> None:
         expected_cols = 4
         str_split = self.df["seat_class_place"].str.split(
             " ", expand=True, n=expected_cols
@@ -430,7 +459,7 @@ class FMDownloader:
         self.df.loc[move_col_rows, "role"] = self.df.loc[move_col_rows, "class"]
         self.df.loc[move_col_rows, "class"] = ""
 
-    def _split_airplane_col(self):
+    def _split_airplane_col(self) -> None:
         expected_cols = 3
         str_split = self.df["airplane_reg_name"].str.split(
             RE_AIRPLANE_REG, expand=True, n=expected_cols
@@ -446,7 +475,7 @@ class FMDownloader:
 
         self.df.loc[:, ["airplane_type", "airplane_reg", "airplane_name"]] = str_split.values
 
-    def _add_airplane_types(self):
+    def _add_airplane_types(self) -> None:
         data_format = "wiki"
         data_set = "aircraft"
 
@@ -508,7 +537,7 @@ class FMDownloader:
                     check_col
                 ].values[0]
 
-    def _split_airline_col(self):
+    def _split_airline_col(self) -> None:
         self.df.loc[:, "flightnum"] = self.df["airline_flightnum"].str.extract(
             RE_FLIGHT_NUM, expand=True
         )
@@ -519,7 +548,7 @@ class FMDownloader:
             pat=RE_AIRLINE_FLIGHT, repl=r"\1", regex=True
         )
 
-    def _dates_to_dt(self):
+    def _dates_to_dt(self) -> None:
         time_cols = utils.get_parents_for_keys_with_value(self.fms_data_dict, "time")
         self.logger.debug(
             "\n%s", self.df.loc[0, ["date", "time_dep", "time_arr", "date_offset"]]
@@ -546,18 +575,18 @@ class FMDownloader:
         )
         self.df.loc[:, "time_arr"] = self.df["time_arr"] + self.df["date_offset"]
 
-    def _duration_to_td(self):
+    def _duration_to_td(self) -> None:
         dur_hr_min = self.df["duration"].str.split(":", expand=True).astype(int)
         self.df.loc[:, "duration"] = pd.to_timedelta(
             dur_hr_min[0], unit="h"
         ) + pd.to_timedelta(dur_hr_min[1], unit="m")
 
-    def _comments_detailurl(self):
+    def _comments_detailurl(self) -> None:
         self.df.loc[:, "comments"] = self.df["comments_detail_url"].str.contains(
             pat=RE_NOTE, regex=True
         )
 
-    def get_comments(self, filter_col=None):
+    def get_comments(self, filter_col: Optional[str] = None) -> None:
         """
         Get comments for flights from flightmemory.com
 
@@ -619,7 +648,11 @@ class FMDownloader:
 
         return links
 
-    def _get_date_filter(self, dates_before: dt, dates_after: dt):
+    def _get_date_filter(
+        self,
+        dates_before: Optional[dt],
+        dates_after: Optional[dt],
+    ) -> None:
         # date_filter = pd.Series(data=[True]*len(self.df.index), dtype='boolean')
         self.df.loc[:, "date_filter"] = True
         if dates_before:
@@ -630,7 +663,11 @@ class FMDownloader:
                 "date_filter"
             ]
 
-    def fm_pages_to_pandas(self, dates_before=None, dates_after=None):
+    def fm_pages_to_pandas(
+        self,
+        dates_before: Optional[dt] = None,
+        dates_after: Optional[dt] = None,
+    ) -> None:
         """
         Convert Flight Memory web pages to pandas data frame
 
@@ -716,10 +753,10 @@ class FMDownloader:
             inplace=True,
         )
 
-        self.df = self.df.replace(r"^\s*$", np.nan, regex=True)
+        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(copy=False)
         self.df.loc[:, "ts"] = dt.now()
 
-    def _try_keyword_lat_lon(self, airport_data):
+    def _try_keyword_lat_lon(self, airport_data: pd.DataFrame) -> None:
         """
         Add airport latitude and longitude information to pandas data frame
         based on OpenAirports keywords.
@@ -775,9 +812,13 @@ class FMDownloader:
 
             self.df.loc[narows, to_cols] = airport_data.loc[res_rows, from_cols].values
 
-        self.df = self.df.replace(r"^\s*$", np.nan, regex=True)
+        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(copy=False)
 
-    def _fuzzy_match_airports(self, airport_data, filter_col=None):
+    def _fuzzy_match_airports(
+        self,
+        airport_data: pd.DataFrame,
+        filter_col: Optional[str] = None,
+    ) -> None:
         row_filter = self.df[["lat_dep", "lat_arr"]].isna().any(axis=1)
         if filter_col:
             row_filter = row_filter & self.df[filter_col]
@@ -835,7 +876,11 @@ class FMDownloader:
                         for col in update_cols:
                             self.df.loc[mmidx, col + leg] = sel_row[col].values[0]
 
-    def add_lat_lon(self, dates_before=None, dates_after=None):
+    def add_lat_lon(
+        self,
+        dates_before: Optional[dt] = None,
+        dates_after: Optional[dt] = None,
+    ) -> None:
         """
         Add airport latitude and longitude information to pandas data frame
 
@@ -893,7 +938,7 @@ class FMDownloader:
             }
         )
 
-        self.df = self.df.replace(r"^\s*$", np.nan, regex=True)
+        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(copy=False)
         self.logger.debug(
             "Have added airport lat and lon data now have:\n%s", self.df.dtypes
         )
@@ -913,7 +958,7 @@ class FMDownloader:
 
         self.df.drop(columns=["date_filter"], inplace=True)
 
-    def _return_empty_tz_dict(self, row):
+    def _return_empty_tz_dict(self, row: pd.Series) -> dict[str, Any]:
         tz = EMPTY_TZ_DICT
         for key in EMPTY_TZ_DICT:
             if key in row:
@@ -921,7 +966,7 @@ class FMDownloader:
         self.logger.debug("tz now:\n%s\n", tz)
         return tz
 
-    def _add_tz(self, row, gnusername):
+    def _add_tz(self, row: pd.Series, gnusername: str) -> pd.Series:
         gn = GeoNames(username=gnusername)
 
         values = ["date", "lat", "lon", "tzid", "gmtoffset"]
@@ -978,7 +1023,12 @@ class FMDownloader:
 
         return row
 
-    def add_timezones(self, gnusername, update_blanks_only=True, num_flights=None):
+    def add_timezones(
+        self,
+        gnusername: str,
+        update_blanks_only: bool = True,
+        num_flights: Optional[int] = None,
+    ) -> None:
         """
         Add airport time zone information (IANA name and GMT offset) to pandas
         data frame
@@ -1129,7 +1179,7 @@ class FMDownloader:
 
             utils.percent_complete(updated_flights, num_flights)
 
-    def save_pandas_to_csv(self, save_fp="flights.csv"):
+    def save_pandas_to_csv(self, save_fp: str = "flights.csv") -> None:
         """
         Save pandas data frame to csv
 
@@ -1142,7 +1192,7 @@ class FMDownloader:
         self.logger.info("Saving self.df to %s", fp)
         self.df.to_csv(fp, index=False, encoding="utf-8")
 
-    def read_pandas_from_csv(self, read_fp):
+    def read_pandas_from_csv(self, read_fp: str) -> None:
         """
         Read in csv to pandas data frame
 
@@ -1179,7 +1229,11 @@ class FMDownloader:
 
         self.logger.debug("Have read in csv; df types:\n%s", self.df.dtypes)
 
-    def remove_rows_by_date(self, dbf=dt(2100, 12, 31), daf=dt(1900, 1, 1)):
+    def remove_rows_by_date(
+        self,
+        dbf: Optional[dt] = None,
+        daf: Optional[dt] = None,
+    ) -> None:
         """
         Remove rows in self.df based on dates in column 'date_as_dt'
 
@@ -1201,7 +1255,11 @@ class FMDownloader:
         self.logger.debug("Removing %s rows", len(rdrop))
         self.df = self.df.drop(rdrop)
 
-    def keep_rows_by_date(self, dbf=dt(2100, 12, 31), daf=dt(1900, 1, 1)):
+    def keep_rows_by_date(
+        self,
+        dbf: Optional[dt] = None,
+        daf: Optional[dt] = None,
+    ) -> None:
         """
         Keep rows in self.df based on dates in column 'date_as_dt'
 
@@ -1223,7 +1281,7 @@ class FMDownloader:
         self.logger.debug("Keeping %s rows", len(rkeep))
         self.df = self.df.iloc[rkeep, :]
 
-    def insert_updated_rows(self, fd_updated):
+    def insert_updated_rows(self, fd_updated: "FMDownloader") -> None:
         """
         Insert updated rows
 
@@ -1283,7 +1341,7 @@ class FMDownloader:
 
         self.logger.debug("Have replaced empty str now have:\n%s", self.df.dtypes)
 
-    def validate_distance_times(self):
+    def validate_distance_times(self) -> None:
         """
         Validate distances and times are correct
         """
@@ -1305,7 +1363,7 @@ class FMDownloader:
         )
         self.df.loc[:, "dur_pct_err"] = self.df["dist_pct_err"].abs()
 
-    def _export_to_openflights(self, fsave):
+    def _export_to_openflights(self, fsave: str) -> None:
         exp_format = "openflights"
         exp_df = dataexport.match_openflights_airports(self.df, self.logger)
         exp_df = dataexport.match_openflights_airlines(exp_df, self.logger)
@@ -1343,7 +1401,7 @@ class FMDownloader:
             "Finished exporting with format '%s' to '%s'", exp_format, fsave
         )
 
-    def _export_to_myflightpath(self, fsave):
+    def _export_to_myflightpath(self, fsave: str) -> None:
         exp_format = "myflightpath"
 
         exp_df = self.df
@@ -1389,7 +1447,7 @@ class FMDownloader:
             "Finished exporting with format '%s' to '%s'", exp_format, fsave
         )
 
-    def export_to(self, exp_format, fsave):
+    def export_to(self, exp_format: str, fsave: Optional[str]) -> None:
         """
         Export fmsave data in given export format to given file
 

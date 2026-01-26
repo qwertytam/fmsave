@@ -1,5 +1,8 @@
 """Providing data export functionality"""
 
+from __future__ import annotations
+
+import logging
 import pandas as pd
 from thefuzz import process
 
@@ -111,7 +114,10 @@ def fuzzy_match_of_airports(df, airport_data, check_col, data_col, find_col, log
     return df
 
 
-def match_openflights_airports(df, logger):
+def match_openflights_airports(
+    df: pd.DataFrame,
+    logger: logging.Logger,
+) -> pd.DataFrame:
     """
     Match openflights airport data set to user airport data
 
@@ -242,7 +248,10 @@ def fuzzy_match_of_airlines_iata_name(
     return df
 
 
-def match_openflights_airlines(df, logger):
+def match_openflights_airlines(
+    df: pd.DataFrame,
+    logger: logging.Logger,
+) -> pd.DataFrame:
     """
     Match openflights airline data set to user airline data
 

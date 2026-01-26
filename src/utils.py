@@ -1,11 +1,14 @@
 """Utility helper functions"""
 
+from __future__ import annotations
+
 import logging
 import sys
 from pathlib import Path
 import re
 from string import Formatter
 from datetime import datetime as dt
+from datetime import timedelta
 from typing import Any
 import pandas as pd
 from constants import DistanceConversions
@@ -18,7 +21,7 @@ module_logger = logging.getLogger(_module_logger_name)
 module_logger.debug("Module %s logger initialized", _module_logger_name)
 
 
-def check_create_path(dir_path: str, logger=module_logger):
+def check_create_path(dir_path: str | Path, logger: logging.Logger = module_logger) -> None:
     """
     Check if path exists, if not, creates path
 
@@ -99,7 +102,7 @@ def get_data_dict_column_names(
     return [k for k in data_dict[top_level_parent]["columns"]]
 
 
-def get_bottom_lists(l: list[Any], max_depth=1) -> list[Any]:
+def get_bottom_lists(l: list[Any], max_depth: int = 1) -> list[Any]:
     """
     Get bottom most list(s) in a nested list
 
@@ -127,7 +130,7 @@ def get_bottom_lists(l: list[Any], max_depth=1) -> list[Any]:
     return res
 
 
-def get_keys_and_parents(d, value):
+def get_keys_and_parents(d: dict[str, Any], value: Any) -> list[Any]:
     """
     Find keys and associated parent hireachy that for the given value.
 
@@ -156,7 +159,7 @@ def get_keys_and_parents(d, value):
     return res
 
 
-def get_parents_for_keys_with_value(d, value):
+def get_parents_for_keys_with_value(d: dict[str, Any], value: Any) -> list[Any]:
     """
     Get parents of keys from dictionary that have the given value
 
@@ -220,7 +223,7 @@ def get_parents_for_keys_with_value(d, value):
     return res
 
 
-def get_parents_for_keys_with_all_values(d, values):
+def get_parents_for_keys_with_all_values(d: dict[str, Any], values: list[Any]) -> list[Any]:
     """
     Find key parents that contain all the values in a given dictionary
 
@@ -247,7 +250,9 @@ def get_parents_for_keys_with_all_values(d, values):
     return list(set.intersection(*sets))
 
 
-def get_parents_with_key_value(d, key, value, regex=False):
+def get_parents_with_key_value(
+    d: dict[str, Any], key: str, value: Any, regex: bool = False
+) -> list[Any]:
     """
     Find parental hireachy for given keys and values in the dictionary
 
@@ -286,7 +291,9 @@ def get_parents_with_key_value(d, key, value, regex=False):
     return res
 
 
-def get_parents_with_key_values(d, key, values, regex=False):
+def get_parents_with_key_values(
+    d: dict[str, Any], key: str, values: list[Any], regex: bool = False
+) -> dict[str, Any]:
     """
     Find key parents that have the given 'key: value' pair; returns result as a
     dictionary of {parent: value, ...}
@@ -316,7 +323,9 @@ def get_parents_with_key_values(d, key, values, regex=False):
     return res
 
 
-def get_parents_list_with_key_values(d, key, values):
+def get_parents_list_with_key_values(
+    d: dict[str, Any], key: str, values: list[Any]
+) -> list[str]:
     """
     Find key parents that have the given 'key: value' pair; returns parents as
     a list
@@ -333,7 +342,7 @@ def get_parents_list_with_key_values(d, key, values):
     return [k for k, v in res.items()]
 
 
-def filterbyvalue(seq, value):
+def filterbyvalue(seq: Any, value: Any) -> Any:
     """
     Filter sequence by value
     """
@@ -342,7 +351,7 @@ def filterbyvalue(seq, value):
             yield el
 
 
-def find_keys_containing(d, pat):
+def find_keys_containing(d: dict[str, Any], pat: str) -> dict[str, dict[Any, str]]:
     """
     Find keys in dictionary containing given pattern
 
@@ -357,7 +366,7 @@ def find_keys_containing(d, pat):
     return res
 
 
-def replace_item(d, replace_dict):
+def replace_item(d: dict[str, Any], replace_dict: dict[Any, Any]) -> dict[str, Any]:
     """
     Replace values in dictionary d based on replacement lookup dictionary.
 
@@ -382,8 +391,8 @@ def replace_item(d, replace_dict):
 
 
 def percent_complete(
-    step: int, total_steps: int, bar_width=60, title="", print_perc=True
-):
+    step: int, total_steps: int, bar_width: int = 60, title: str = "", print_perc: bool = True
+) -> None:
     """
     Author is StackOverFlow user WinEunuuchs2Unix
     ref: https://stackoverflow.com/questions/3002085/how-to-print-out-status-bar-and-percentage
@@ -427,7 +436,7 @@ def percent_complete(
 
 def print_selection_table(
     df: pd.DataFrame, display_cols: list[str], col_widths: list[int]
-):
+) -> None:
     """
     Print columns in dataframe using given widths
 
@@ -468,7 +477,7 @@ def swap_keys_values(d: dict[Any, Any]) -> dict[Any, Any]:
     return dict((v, k) for k, v in d.items())
 
 
-def get_keys(d: dict[Any, Any]) -> list:
+def get_keys(d: dict[Any, Any]) -> list[str]:
     """
     Get all keys from given dictionary
 
@@ -481,7 +490,9 @@ def get_keys(d: dict[Any, Any]) -> list:
     return [k for k, v in d.items()]
 
 
-def strfdelta(tdelta, fmt="{D:02}d {H:02}h {M:02}m {S:02}s", inputtype="timedelta"):
+def strfdelta(
+    tdelta: timedelta | int | float, fmt: str = "{D:02}d {H:02}h {M:02}m {S:02}s", inputtype: str = "timedelta"
+) -> str:
     """Convert a datetime.timedelta object or a regular number to a custom-
     formatted string, just like the stftime() method does for datetime.datetime
     objects.

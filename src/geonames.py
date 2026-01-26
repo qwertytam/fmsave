@@ -1,6 +1,9 @@
 """Geonames API functionality"""
 
+from __future__ import annotations
+
 import logging
+from typing import Any, Callable
 import requests
 from requests.adapters import HTTPAdapter
 from requests.exceptions import JSONDecodeError as rJSONDecodeError
@@ -40,10 +43,10 @@ class GeoNames:
 
     def __init__(
         self,
-        username,
-        timeout=Timeouts.API_CALL_DEFAULT,
-        user_agent=None,
-    ):
+        username: str,
+        timeout: int = Timeouts.API_CALL_DEFAULT,
+        user_agent: str | None = None,
+    ) -> None:
         """
         Args:
             username: GeoNames username, required. Sign up here:
@@ -60,7 +63,14 @@ class GeoNames:
         self.user_agent = (user_agent,)
         self.username = username
 
-    def _call_geonames(self, url, params, callback, timeout=Timeouts.API_CALL_DEFAULT, maxretries=APILimits.MAX_RETRIES):
+    def _call_geonames(
+        self,
+        url: str,
+        params: dict[str, Any],
+        callback: Callable[[dict[str, Any]], dict[str, Any]],
+        timeout: int = Timeouts.API_CALL_DEFAULT,
+        maxretries: int = APILimits.MAX_RETRIES,
+    ) -> dict[str, Any]:
         self.logger.debug("Sending request to url: %s\nparams: %s", url, params)
         retry_strategy = Retry(
             total=maxretries,
@@ -97,7 +107,7 @@ class GeoNames:
 
         return callback(resp_json)
 
-    def _raise_for_error(self, body):
+    def _raise_for_error(self, body: dict[str, Any]) -> None:
         error = body.get("status")
         if error:
             code = error["value"]
@@ -128,7 +138,7 @@ class GeoNames:
             self.logger.error(err_msg)
             raise GeoNamesError(err_msg)
 
-    def _parse_response(self, response):
+    def _parse_response(self, response: dict[str, Any]) -> dict[str, Any]:
         self.logger.debug(response)
         lat = float(response.get("lat"))
         lon = float(response.get("lng"))
@@ -153,7 +163,14 @@ class GeoNames:
 
         return resp_dict
 
-    def find_tz(self, lat, lon, date, timeout=Timeouts.API_CALL_DEFAULT, maxretries=APILimits.MAX_RETRIES):
+    def find_tz(
+        self,
+        lat: float,
+        lon: float,
+        date: str,
+        timeout: int = Timeouts.API_CALL_DEFAULT,
+        maxretries: int = APILimits.MAX_RETRIES,
+    ) -> dict[str, Any]:
         """
         Find the timezone for a lat, lon and date
 

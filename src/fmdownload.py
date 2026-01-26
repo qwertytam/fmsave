@@ -1379,11 +1379,16 @@ class FMDownloader:
 
         for fmt_key, _ in lookups.DT_FMTS.items():
             fmt_rows = exp_df["dt_info"] == fmt_key
-            dt_dmt = lookups.DT_FMTS[fmt_key]["fmt"]
+            dt_fmt = lookups.DT_FMTS[fmt_key]["fmt"]
             dt_col = lookups.DT_FMTS[fmt_key]["srccol"]
-            exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[
-                fmt_rows, dt_col
-            ].dt.strftime(dt_dmt)
+            
+            # Ensure column exists and is datetime type before using .dt accessor
+            if dt_col in exp_df.columns and fmt_rows.any():
+                # Convert to datetime if not already
+                if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
+                    exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+                
+                exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_fmt)
 
         exp_cols = utils.get_keys(col_renames)
         exp_cols = [x for x in exp_cols if x in set(exp_df.columns)]

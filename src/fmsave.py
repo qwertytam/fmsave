@@ -212,15 +212,32 @@ def show_status(fmdownloader, file_read):
         file_read: fmsave csv to read
     """
     import pandas as pd
+    from pathlib import Path
+    
+    # Validate file exists
+    file_path = Path(file_read)
+    if not file_path.exists():
+        print(f"Error: File not found: {file_read}")
+        sys.exit(1)
     
     # If fmdownloader is available, use it to read the CSV with proper types
     # Otherwise, read directly with pandas
-    if fmdownloader is not None:
-        fmdownloader.read_pandas_from_csv(read_fp=file_read)
-        df = fmdownloader.df
-    else:
-        # Read CSV directly without FMDownloader
-        df = pd.read_csv(file_read)
+    try:
+        if fmdownloader is not None:
+            fmdownloader.read_pandas_from_csv(read_fp=file_read)
+            df = fmdownloader.df
+        else:
+            # Read CSV directly without FMDownloader
+            df = pd.read_csv(file_read)
+    except pd.errors.EmptyDataError:
+        print(f"Error: CSV file is empty: {file_read}")
+        sys.exit(1)
+    except pd.errors.ParserError as e:
+        print(f"Error: Failed to parse CSV file: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: Failed to read file: {e}")
+        sys.exit(1)
     
     # Calculate statistics
     total_flights = len(df)

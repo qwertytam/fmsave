@@ -41,10 +41,16 @@ def _load_config_file():
     if config_path is None:
         return {}
     
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-    
-    return config if config else {}
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        return config if config else {}
+    except yaml.YAMLError as e:
+        print(f"Warning: Error parsing config file {config_path}: {e}")
+        return {}
+    except Exception as e:
+        print(f"Warning: Error reading config file {config_path}: {e}")
+        return {}
 
 
 def get_config():

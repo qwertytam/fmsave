@@ -1,7 +1,11 @@
 # Package specific
 .DS_Store
 debug.log*
-.vscode
+
+# VS Code - ignore all except shared settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -327,7 +327,7 @@ class FMDownloader:
 
         # For the date with day offset case, need to ensure there are three
         # spaces for when we split into four columns
-        self.df["date_dept_arr_offset"] = self.df["date_dept_arr_offset"].str.replace(
+        self.df.loc[:, "date_dept_arr_offset"] = self.df["date_dept_arr_offset"].str.replace(
             pat=RE_DATE_OFFSET, repl=r"\1   \2", regex=True
         )
 
@@ -348,9 +348,9 @@ class FMDownloader:
             self.logger.debug("only three columns, adding one more")
             str_split[3] = pd.Series("", index=str_split.index)
 
-        self.df[["date", "time_dep", "time_arr", "date_offset"]] = str_split
+        self.df.loc[:, ["date", "time_dep", "time_arr", "date_offset"]] = str_split.values
 
-        self.df["dt_info"] = None
+        self.df.loc[:, "dt_info"] = None
 
         # year, month, day and time available
         condition = self.df["time_dep"].str.len() > 0
@@ -391,15 +391,15 @@ class FMDownloader:
         self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_Y.value
 
         # Use pre-compiled empty string pattern
-        self.df["date_offset"] = self.df["date_offset"].str.replace(
+        self.df.loc[:, "date_offset"] = self.df["date_offset"].str.replace(
             pat=RE_EMPTY_STRING, repl="0", regex=True
         )
 
     def _split_dist_col(self):
-        self.df[["dist", "dist_units", "duration", "duration_units"]] = self.df[
+        self.df.loc[:, ["dist", "dist_units", "duration", "duration_units"]] = self.df[
             "dist_duration"
-        ].str.split("\\|\\|", expand=True)
-        self.df["dist"] = pd.to_numeric(self.df["dist"].str.replace(",", ""))
+        ].str.split("\\|\\|", expand=True).values
+        self.df.loc[:, "dist"] = pd.to_numeric(self.df["dist"].str.replace(",", ""))
 
     def _split_seat_col(self):
         expected_cols = 4
@@ -419,11 +419,11 @@ class FMDownloader:
             self.logger.debug("only three columns, adding one more")
             str_split[3] = pd.Series("", index=str_split.index)
 
-        self.df[["seat_position", "class", "role", "reason"]] = str_split
+        self.df.loc[:, ["seat_position", "class", "role", "reason"]] = str_split.values
 
-        self.df[["seat", "position"]] = self.df["seat_position"].str.split(
+        self.df.loc[:, ["seat", "position"]] = self.df["seat_position"].str.split(
             "\\/", expand=True
-        )
+        ).values
 
         move_col_rows = self.df["class"].isin(lookups.FM_ROLE)
         self.df.loc[move_col_rows, "reason"] = self.df.loc[move_col_rows, "role"]
@@ -444,7 +444,7 @@ class FMDownloader:
             self.logger.debug("only two columns, adding one more")
             str_split[2] = pd.Series("", index=str_split.index)
 
-        self.df[["airplane_type", "airplane_reg", "airplane_name"]] = str_split
+        self.df.loc[:, ["airplane_type", "airplane_reg", "airplane_name"]] = str_split.values
 
     def _add_airplane_types(self):
         data_format = "wiki"
@@ -465,7 +465,7 @@ class FMDownloader:
         wiki_data.columns = col_names
         wiki_data = wiki_data.astype(col_types)
 
-        self.df[match_col] = self.df[match_col].fillna("")
+        self.df.loc[:, match_col] = self.df[match_col].fillna("")
         self.df = data.fuzzy_merge(self.df, wiki_data, match_col, "model_name", limit=1)
 
         self.df = self.df.join(
@@ -509,13 +509,13 @@ class FMDownloader:
                 ].values[0]
 
     def _split_airline_col(self):
-        self.df["flightnum"] = self.df["airline_flightnum"].str.extract(
+        self.df.loc[:, "flightnum"] = self.df["airline_flightnum"].str.extract(
             RE_FLIGHT_NUM, expand=True
         )
 
-        self.df["iata_airline"] = self.df["flightnum"].str.slice(0, 2)
+        self.df.loc[:, "iata_airline"] = self.df["flightnum"].str.slice(0, 2)
 
-        self.df["airline"] = self.df["airline_flightnum"].str.replace(
+        self.df.loc[:, "airline"] = self.df["airline_flightnum"].str.replace(
             pat=RE_AIRLINE_FLIGHT, repl=r"\1", regex=True
         )
 
@@ -534,26 +534,26 @@ class FMDownloader:
                 + self.df.loc[~time_is_empty, col]
             )
 
-            self.df[col] = pd.to_datetime(self.df[col], format="mixed", dayfirst=True)
+            self.df.loc[:, col] = pd.to_datetime(self.df[col], format="mixed", dayfirst=True)
 
-        self.df["date_as_dt"] = pd.to_datetime(
+        self.df.loc[:, "date_as_dt"] = pd.to_datetime(
             self.df["date"], format="mixed", dayfirst=True
         )
 
-        self.df["date_offset"] = self.df["date_offset"].fillna(0)
-        self.df["date_offset"] = pd.to_timedelta(
+        self.df.loc[:, "date_offset"] = self.df["date_offset"].fillna(0)
+        self.df.loc[:, "date_offset"] = pd.to_timedelta(
             pd.to_numeric(self.df["date_offset"]), unit="days"
         )
-        self.df["time_arr"] = self.df["time_arr"] + self.df["date_offset"]
+        self.df.loc[:, "time_arr"] = self.df["time_arr"] + self.df["date_offset"]
 
     def _duration_to_td(self):
         dur_hr_min = self.df["duration"].str.split(":", expand=True).astype(int)
-        self.df["duration"] = pd.to_timedelta(
+        self.df.loc[:, "duration"] = pd.to_timedelta(
             dur_hr_min[0], unit="h"
         ) + pd.to_timedelta(dur_hr_min[1], unit="m")
 
     def _comments_detailurl(self):
-        self.df["comments"] = self.df["comments_detail_url"].str.contains(
+        self.df.loc[:, "comments"] = self.df["comments_detail_url"].str.contains(
             pat=RE_NOTE, regex=True
         )
 
@@ -621,12 +621,12 @@ class FMDownloader:
 
     def _get_date_filter(self, dates_before: dt, dates_after: dt):
         # date_filter = pd.Series(data=[True]*len(self.df.index), dtype='boolean')
-        self.df["date_filter"] = True
+        self.df.loc[:, "date_filter"] = True
         if dates_before:
-            self.df["date_filter"] = self.df["date_as_dt"] <= dates_before
+            self.df.loc[:, "date_filter"] = self.df["date_as_dt"] <= dates_before
 
         if dates_after:
-            self.df["date_filter"] = (self.df["date_as_dt"] >= dates_after) & self.df[
+            self.df.loc[:, "date_filter"] = (self.df["date_as_dt"] >= dates_after) & self.df[
                 "date_filter"
             ]
 
@@ -717,7 +717,7 @@ class FMDownloader:
         )
 
         self.df = self.df.replace(r"^\s*$", np.nan, regex=True)
-        self.df["ts"] = dt.now()
+        self.df.loc[:, "ts"] = dt.now()
 
     def _try_keyword_lat_lon(self, airport_data):
         """
@@ -1169,13 +1169,13 @@ class FMDownloader:
 
         for col in datetime_cols:
             if col in self.df.columns:
-                self.df[col] = pd.to_datetime(
+                self.df.loc[:, col] = pd.to_datetime(
                     self.df[col], format="mixed", dayfirst=False, errors="coerce"
                 )
 
         for col in timedelata_cols:
             if col in self.df.columns:
-                self.df[col] = pd.to_timedelta(self.df[col], errors="coerce")
+                self.df.loc[:, col] = pd.to_timedelta(self.df[col], errors="coerce")
 
         self.logger.debug("Have read in csv; df types:\n%s", self.df.dtypes)
 
@@ -1244,8 +1244,8 @@ class FMDownloader:
             self.fms_data_dict, "data", ["lon", "lat", "ourairports_id"]
         )
 
-        self.df[to_str_cols] = self.df[to_str_cols].astype(str)
-        fd_updated.df[to_str_cols] = fd_updated.df[to_str_cols].astype(str)
+        self.df.loc[:, to_str_cols] = self.df[to_str_cols].astype(str)
+        fd_updated.df.loc[:, to_str_cols] = fd_updated.df[to_str_cols].astype(str)
 
         exc_cols = ["flight_index"]
         self.logger.debug("self has types:\n%s", self.df.dtypes)
@@ -1271,15 +1271,15 @@ class FMDownloader:
         sort_cols = ["date", "time_dep", "time_arr"]
 
         self.df = df_all.sort_values(by=sort_cols)
-        self.df["flight_index"] = range(1, len(self.df.index) + 1)
+        self.df.loc[:, "flight_index"] = range(1, len(self.df.index) + 1)
 
         self.logger.debug("Have inserted new data; now have:\n%s", self.df.dtypes)
 
         non_str_cols = to_str_cols
-        self.df[non_str_cols] = self.df[non_str_cols].replace(
+        self.df.loc[:, non_str_cols] = self.df[non_str_cols].replace(
             r"^\s*$", np.nan, regex=True
         )
-        self.df[non_str_cols] = self.df[non_str_cols].astype(float)
+        self.df.loc[:, non_str_cols] = self.df[non_str_cols].astype(float)
 
         self.logger.debug("Have replaced empty str now have:\n%s", self.df.dtypes)
 
@@ -1287,23 +1287,23 @@ class FMDownloader:
         """
         Validate distances and times are correct
         """
-        self.df["dist_validated"] = fmvalidate.calc_distance(
+        self.df.loc[:, "dist_validated"] = fmvalidate.calc_distance(
             self.df, "lat_dep", "lon_dep", "lat_arr", "lon_arr"
         )
-        self.df["dist_pct_err"] = (
+        self.df.loc[:, "dist_pct_err"] = (
             (self.df["dist"] - self.df["dist_validated"]) / self.df["dist"] * 100
         )
-        self.df["dist_pct_err"] = self.df["dist_pct_err"].abs()
+        self.df.loc[:, "dist_pct_err"] = self.df["dist_pct_err"].abs()
 
-        self.df["duration_validated"] = fmvalidate.calc_duration(
+        self.df.loc[:, "duration_validated"] = fmvalidate.calc_duration(
             self.df, "time_dep", "time_arr", "gmtoffset_dep", "gmtoffset_arr"
         )
-        self.df["dur_pct_err"] = (
+        self.df.loc[:, "dur_pct_err"] = (
             (self.df["duration"] - self.df["duration_validated"])
             / self.df["duration"]
             * 100
         )
-        self.df["dur_pct_err"] = self.df["dist_pct_err"].abs()
+        self.df.loc[:, "dur_pct_err"] = self.df["dist_pct_err"].abs()
 
     def _export_to_openflights(self, fsave):
         exp_format = "openflights"

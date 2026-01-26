@@ -1395,9 +1395,10 @@ class FMDownloader:
                 continue
             
             # Ensure column is datetime type before using .dt accessor
+            # Use direct assignment (not .loc) to ensure dtype changes from object to datetime64
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
             # Now safely use .dt accessor with .loc
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_fmt)
@@ -1408,7 +1409,7 @@ class FMDownloader:
 
         # Handle Duration column - check if it's a timedelta type
         if "Duration" in exp_df.columns:
-            if pd.api.types.is_timedelta64_any_dtype(exp_df["Duration"]):
+            if pd.api.types.is_timedelta64_dtype(exp_df["Duration"]):
                 exp_df.loc[:, "Duration"] = exp_df["Duration"].dt.to_pytimedelta().astype("str")
             else:
                 # If Duration is already a string (e.g., loaded from CSV), convert via timedelta
@@ -1456,9 +1457,10 @@ class FMDownloader:
                 continue
             
             # Ensure column is datetime type before using .dt accessor
+            # Use direct assignment (not .loc) to ensure dtype changes from object to datetime64
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
             # Now safely use .dt accessor with .loc
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[
@@ -1471,10 +1473,11 @@ class FMDownloader:
 
         for time_col in ["departure_time", "arrival_time"]:
             # Ensure time columns are datetime type before using .dt accessor
+            # Use direct assignment (not .loc) to ensure dtype changes from object to datetime64
             if time_col in exp_df.columns:
                 if not pd.api.types.is_datetime64_any_dtype(exp_df[time_col]):
                     self.logger.debug("Converting %s to datetime", time_col)
-                    exp_df.loc[:, time_col] = pd.to_datetime(exp_df[time_col], errors='coerce')
+                    exp_df[time_col] = pd.to_datetime(exp_df[time_col], errors='coerce')
                 exp_df.loc[:, time_col] = exp_df[time_col].dt.strftime("%H:%M")
 
         exp_df.loc[:, "duration"] = exp_df["duration"].apply(

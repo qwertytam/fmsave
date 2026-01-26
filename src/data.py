@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 import io
 import requests
+from functools import lru_cache
 from thefuzz import process
 import pandas as pd
 import yaml
@@ -150,15 +151,15 @@ def _get_data(filepath, **kwargs):
     return pd.read_csv(filepath, **kwargs)
 
 
+@lru_cache(maxsize=8)
 def get_openflights_data(
-    data_set=OPENFLIGHTS_DATA_SETS[0], header=None, supplemental=False, **kwargs
+    data_set=OPENFLIGHTS_DATA_SETS[0], header=None, supplemental=False
 ):
     """
     Get open flights data from module data set
 
     Args:
         data_set: which data set to get e.g., airports, airlines, planes
-        **kwargs: Keyword arguments passed to lower functions, notably 'pd.read_csv'
 
     Returns:
         openflights data set as pandas data frame
@@ -167,10 +168,11 @@ def get_openflights_data(
     fn = data_set + supp + OPENFLIGHTS_FILE_EXT
     fp = OPENFLIGHTS_DATA_FP_BASE / fn
     return _get_data(
-        fp, header=header, index_col=False, na_values=["\\N", "-"], **kwargs
+        fp, header=header, index_col=False, na_values=["\\N", "-"]
     )
 
 
+@lru_cache(maxsize=1)
 def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH):
     """
     Get airports data from module data set
@@ -178,7 +180,6 @@ def get_ourairport_data(airport_data_file=OURAIRPORTS_DATA_FILEPATH):
     Args:
         airport_data_file: file path and name to csv file that contains
         required information. Typically using openflights information
-        logger: logger to use
 
     Returns:
         ourairport data set as pandas data frame
@@ -260,26 +261,33 @@ def fuzzy_merge(df_l, df_r, key_l, key_r, threshold=95, limit=10):
     return df_l
 
 
-def get_wiki_data(data_set="aircraft", header=0, **kwargs):
+@lru_cache(maxsize=4)
+def get_wiki_data(data_set="aircraft", header=0):
     """
     Get open flights data from wiki
 
     Args:
         data_set: which data set to get e.g., aircraft
-        **kwargs: Keyword arguments passed to lower functions, notably 'pd.read_csv'
 
     Returns:
-        wiki data set as panads data frame
+        wiki data set as pandas data frame
     """
     fn = data_set + ".csv"
     fp = WIKI_DATA_FP_BASE / fn
-    df = _get_data(fp, header=header, index_col=False, na_values="—", **kwargs)
+    df = _get_data(fp, header=header, index_col=False, na_values="—")
 
     fn = data_set + "_supplemental" + ".csv"
     fp = WIKI_DATA_FP_BASE / fn
-    supp = _get_data(fp, header=header, index_col=False, na_values="—", **kwargs)
+    supp = _get_data(fp, header=header, index_col=False, na_values="—")
 
     df = pd.concat([df, supp], ignore_index=True)
     df = df.drop_duplicates()
 
     return df
+
+
+def clear_data_caches():
+    """Clear all cached data. Call this after updating reference data files."""
+    get_ourairport_data.cache_clear()
+    get_openflights_data.cache_clear()
+    get_wiki_data.cache_clear()

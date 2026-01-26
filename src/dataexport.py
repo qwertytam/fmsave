@@ -32,8 +32,11 @@ def get_openflights_data(
     col_types = utils.replace_item(col_types, lookups.STR_TYPE_LU)
 
     of_data = data.get_openflights_data(
-        data_set, names=col_names, dtype=col_types, supplemental=supplemental
+        data_set, supplemental=supplemental
     )
+    # Apply column names and types after loading
+    of_data.columns = col_names
+    of_data = of_data.astype(col_types)
     return of_data
 
 

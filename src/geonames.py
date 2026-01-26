@@ -35,7 +35,7 @@ EMPTY_TZ_DICT = {
 class GeoNames:
     """sGeonames API functionality"""
 
-    url = "http://api.geonames.org/timezoneJSON"
+    url = "https://secure.geonames.org/timezoneJSON"
 
     def __init__(
         self,

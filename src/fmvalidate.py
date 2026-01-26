@@ -1,10 +1,18 @@
 """Module providing time and distance validation functionality"""
 
+from __future__ import annotations
+
 from geopy import distance as dist
 import pandas as pd
 
 
-def calc_distance(df, lat_fr, lon_fr, lat_to, lon_to):
+def calc_distance(
+    df: pd.DataFrame,
+    lat_fr: str,
+    lon_fr: str,
+    lat_to: str,
+    lon_to: str,
+) -> pd.Series:
     """
     Calculate distance between two points
 
@@ -29,7 +37,13 @@ def calc_distance(df, lat_fr, lon_fr, lat_to, lon_to):
     return d_km
 
 
-def calc_duration(df, time_fr, time_to, gmtoffset_fr, gmtoffset_to):
+def calc_duration(
+    df: pd.DataFrame,
+    time_fr: str,
+    time_to: str,
+    gmtoffset_fr: str,
+    gmtoffset_to: str,
+) -> pd.Series:
     """
     Calculate time difference between two times in different time zones
 

@@ -132,3 +132,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# fmsave configuration (may contain usernames)
+.fmsaverc

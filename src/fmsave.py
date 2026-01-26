@@ -9,6 +9,7 @@ Usage:
   fmsave.py upof
   fmsave.py upwiki
   fmsave.py export <exp_format> <fread> [<fsave>]
+  fmsave.py status <fread>
   fmsave.py -h | --help
 
 Options:
@@ -27,6 +28,7 @@ Commands:
   upof      Update openflights data files
   upwiki    Update wikipedia data, namely IATA and ICAO aircraft type codes
   export    Export data to given format
+  status    Show status/statistics of flight data file
 
 
 Arguments:
@@ -43,10 +45,12 @@ Arguments:
 
 import logging
 import logging.config
+import sys
 from pathlib import Path
 from docopt import docopt
 import yaml
 
+import config
 import logins
 from data import update_ourairport_data, update_openflights_data, dl_aircraft_codes
 from fmdownload import FMDownloader
@@ -199,6 +203,68 @@ def update_wiki():
     dl_aircraft_codes(logger)
 
 
+def show_status(fmdownloader, file_read):
+    """
+    Show status/statistics of flight data file
+    
+    Args:
+        fmdownloader: FMDownloader class object
+        file_read: fmsave csv to read
+    """
+    import pandas as pd
+    
+    # Read the CSV file
+    fmdownloader.read_pandas_from_csv(read_fp=file_read)
+    df = fmdownloader.df
+    
+    # Calculate statistics
+    total_flights = len(df)
+    
+    # Missing timezone data
+    missing_tz = 0
+    if 'tzid_dep' in df.columns and 'tzid_arr' in df.columns:
+        missing_tz = df[
+            df['tzid_dep'].isna() | df['tzid_arr'].isna() | 
+            (df['tzid_dep'] == '') | (df['tzid_arr'] == '')
+        ].shape[0]
+    
+    # Missing coordinate data
+    missing_coords = 0
+    coord_cols = ['lat_dep', 'lon_dep', 'lat_arr', 'lon_arr']
+    if all(col in df.columns for col in coord_cols):
+        missing_coords = df[
+            df['lat_dep'].isna() | df['lon_dep'].isna() | 
+            df['lat_arr'].isna() | df['lon_arr'].isna()
+        ].shape[0]
+    
+    # Date range
+    date_range = "N/A"
+    if 'date_as_dt' in df.columns:
+        dates = pd.to_datetime(df['date_as_dt'], errors='coerce')
+        dates = dates.dropna()
+        if len(dates) > 0:
+            min_date = dates.min().strftime('%Y-%m-%d')
+            max_date = dates.max().strftime('%Y-%m-%d')
+            date_range = f"{min_date} to {max_date}"
+    
+    # Last updated
+    last_updated = "N/A"
+    if 'ts' in df.columns:
+        timestamps = pd.to_datetime(df['ts'], errors='coerce')
+        timestamps = timestamps.dropna()
+        if len(timestamps) > 0:
+            last_updated = timestamps.max().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Print status
+    print(f"Flight Data Status: {file_read}")
+    print("=" * 44)
+    print(f"Total flights:           {total_flights}")
+    print(f"Missing timezone data:   {missing_tz}")
+    print(f"Missing coordinates:     {missing_coords}")
+    print(f"Date range:              {date_range}")
+    print(f"Last updated:            {last_updated}")
+
+
 if __name__ == "__main__":
     args = docopt(__doc__)
 
@@ -211,6 +277,7 @@ if __name__ == "__main__":
     uptz = args["uptz"]
     validate = args["validate"]
     upwiki = args["upwiki"]
+    status = args["status"]
 
     fread = args["<fread>"]
     fsave = args["<fsave>"]
@@ -218,14 +285,16 @@ if __name__ == "__main__":
     gn_un = args["<gn_un>"]
     read_path = args["<read_path>"]
 
-    CHROME_PATH = args["<chrome_path>"]
-    if CHROME_PATH is None:
-        CHROME_PATH = defaults.DEFAULT_CHROME_PATH
+    CHROME_PATH = config.get_chrome_path(args["<chrome_path>"])
 
     fd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
 
     if dlhtml:
-        fd.fm_un = args["<fm_un>"]
+        fm_un = config.get_flightmemory_username(args["<fm_un>"])
+        if fm_un is None:
+            print("Error: FlightMemory username required. Provide via argument, config file, or FMSAVE_FM_USERNAME environment variable.")
+            sys.exit(1)
+        fd.fm_un = fm_un
         save_path = args["<save_path>"]
         max_pages = args["--max-pages"]
         if max_pages is not None:
@@ -238,6 +307,10 @@ if __name__ == "__main__":
         export_to(fd, exp_format, fread, fsave)
 
     if tocsv:
+        gn_un = config.get_geonames_username(args["<gn_un>"])
+        if gn_un is None:
+            print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
+            sys.exit(1)
         if fsave is None:
             fsave = fread
         html_to_csv(fd, gn_un, read_path, fsave)
@@ -250,6 +323,10 @@ if __name__ == "__main__":
             update_ourairport_data(url=airurl, logger=logger)
 
     if upcsv:
+        gn_un = config.get_geonames_username(args["<gn_un>"])
+        if gn_un is None:
+            print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
+            sys.exit(1)
         if fsave is None:
             fsave = fread
 
@@ -266,6 +343,10 @@ if __name__ == "__main__":
         update_openflights_data(logger=logger)
 
     if uptz:
+        gn_un = config.get_geonames_username(args["<gn_un>"])
+        if gn_un is None:
+            print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
+            sys.exit(1)
         if fsave is None:
             fsave = fread
         update_tz(fd, gn_un, fread, fsave)
@@ -277,3 +358,6 @@ if __name__ == "__main__":
 
     if upwiki:
         update_wiki()
+
+    if status:
+        show_status(fd, fread)

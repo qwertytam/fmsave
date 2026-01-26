@@ -1,0 +1,22 @@
+# fmsave Configuration File
+# ========================
+# Copy this file to ~/.fmsaverc or ./.fmsaverc and fill in your values.
+# Command-line arguments take precedence over these settings.
+# Environment variables take precedence over this file.
+
+# GeoNames username (required for timezone lookups)
+# Sign up for a free account at: http://www.geonames.org/login
+# Don't forget to enable the account for web services in your account settings
+geonames_username: your_geonames_username
+
+# FlightMemory username (required for downloading flight data)
+# Your password will be prompted securely at runtime
+flightmemory_username: your_flightmemory_username
+
+# Path to Chrome/Chromium executable (optional)
+# Default: /Applications/Chromium.app/Contents/MacOS/Chromium
+# chrome_path: /Applications/Chromium.app/Contents/MacOS/Chromium
+
+# Default path for saving/reading flight data (optional)
+# This is used when no path is specified in commands
+# default_data_path: ~/flights/

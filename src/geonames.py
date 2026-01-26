@@ -27,6 +27,9 @@ _module_logger_name = f"{APP_NAME}.{__name__}"
 module_logger = logging.getLogger(_module_logger_name)
 module_logger.debug("Module %s logger initialized", _module_logger_name)
 
+# Module-level cache for timezone lookups
+_tz_cache: dict[tuple[float, float, str], dict[str, Any]] = {}
+
 EMPTY_TZ_DICT = {
     "lat": None,
     "lon": None,
@@ -173,6 +176,9 @@ class GeoNames:
     ) -> dict[str, Any]:
         """
         Find the timezone for a lat, lon and date
+        
+        Results are cached by (rounded lat, rounded lon, date) to avoid
+        redundant API calls for the same location and date.
 
         Args:
             lat: latitude in decimal format
@@ -185,12 +191,31 @@ class GeoNames:
         Return:
             Dictionary with 'lat', 'lon', 'date', 'tz_id', and 'gmt_offset'
         """
+        # Round coordinates to 4 decimal places for better cache hits
+        # (4 decimal places = ~11 meters precision, sufficient for timezone)
+        lat_rounded = round(lat, 4)
+        lon_rounded = round(lon, 4)
+        
+        cache_key = (lat_rounded, lon_rounded, date)
+        
+        # Check cache first
+        if cache_key in _tz_cache:
+            self.logger.debug("Cache hit for timezone lookup: %s", cache_key)
+            return _tz_cache[cache_key]
+        
+        self.logger.debug("Cache miss for timezone lookup: %s", cache_key)
+        
         params = {
             "lat": lat,
             "lng": lon,
             "date": date,
             "username": self.username,
         }
-        return self._call_geonames(
+        result = self._call_geonames(
             self.url, params, self._parse_response, timeout, maxretries
         )
+        
+        # Store in cache
+        _tz_cache[cache_key] = result
+        
+        return result

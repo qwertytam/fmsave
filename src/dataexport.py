@@ -52,12 +52,12 @@ def get_openflights_data(
     for col, dtype in col_types.items():
         if col in of_data.columns:
             try:
-                of_data[col] = of_data[col].astype(dtype)
+                of_data.loc[:, col] = of_data[col].astype(dtype)
             except (ValueError, TypeError):
                 # If conversion fails, try converting to numeric for float columns
                 # Check for float type (handles float, 'float', 'float64')
                 if dtype == float or (isinstance(dtype, str) and 'float' in dtype.lower()):
-                    of_data[col] = pd.to_numeric(of_data[col], errors='coerce')
+                    of_data.loc[:, col] = pd.to_numeric(of_data[col], errors='coerce')
                 else:
                     logger.warning(f"Could not convert column {col} to {dtype}")
     
@@ -152,7 +152,7 @@ def match_openflights_airports(
     of_airports = get_openflights_airport_data(logger)
 
     new_col = "From_OID"
-    of_airports[new_col] = of_airports["ID"]
+    of_airports.loc[:, new_col] = of_airports["ID"]
     inc_cols = ["ICAO", new_col]
     df = df.join(
         of_airports[inc_cols].set_index("ICAO"),
@@ -193,7 +193,7 @@ def _fuzzy_match_openflights(df, to_find_col, to_match_col, limit=1, threshold=9
         )
     )
 
-    df[to_match_col] = matches.apply(
+    df.loc[:, to_match_col] = matches.apply(
         lambda x: ", ".join(i[0] for i in x if i[1] >= threshold)
     )
     return df
@@ -302,7 +302,7 @@ def match_openflights_airlines(
     col_name_sep = "_"
     data_id_col = "ID"
     new_id_col = "Airline" + col_name_sep + "OID"
-    airline_data[new_id_col] = airline_data[data_id_col]
+    airline_data.loc[:, new_id_col] = airline_data[data_id_col]
 
     # First going to join on IATA and Name
     data_iata_col = "IATA"
@@ -310,10 +310,10 @@ def match_openflights_airlines(
     new_match_col = data_iata_col + col_name_sep + data_name_col
 
     # Create new key of 'iata_name' in df and data...
-    df_match[new_match_col] = (
+    df_match.loc[:, new_match_col] = (
         df_match[df_iata_col] + col_name_sep + df_match[df_name_col]
     )
-    airline_data[new_match_col] = (
+    airline_data.loc[:, new_match_col] = (
         airline_data[data_iata_col] + col_name_sep + airline_data[data_name_col]
     )
 
@@ -349,7 +349,7 @@ def match_openflights_airlines(
     matches = names_to_match["airline"].apply(
         lambda x: process.extract(x, sequences, limit=limit)
     )
-    names_to_match[data_name_col] = matches.apply(
+    names_to_match.loc[:, data_name_col] = matches.apply(
         lambda x: ", ".join(i[0] for i in x if i[1] >= threshold)
     )
 

@@ -6,6 +6,9 @@ import logging
 import pandas as pd
 from thefuzz import process
 
+# Opt-in to future pandas behavior to avoid FutureWarning
+pd.set_option('future.no_silent_downcasting', True)
+
 import data
 import utils
 import lookups
@@ -21,7 +24,7 @@ def get_openflights_data(
         data_set: openflights data set to get
         logger: Python logger to use
         exp_format: Export format i.e. 'openflights'
-        supplemental: Wether to get '_supplemental.csv' data set
+        supplemental: Whether to get '_supplemental.csv' data set
 
     Returns:
         openflights data set as pandas data frame
@@ -37,9 +40,27 @@ def get_openflights_data(
     of_data = data.get_openflights_data(
         data_set, supplemental=supplemental
     )
-    # Apply column names and types after loading
+    # Apply column names first
     of_data.columns = col_names
-    of_data = of_data.astype(col_types)
+    
+    # Replace any remaining null markers with NaN before type conversion
+    # Note: While data.get_openflights_data() uses na_values parameter,
+    # some null markers may still appear as strings in the data
+    of_data = of_data.replace(["\\N", "-", ""], pd.NA)
+    
+    # Convert types with error handling for columns that can't be converted
+    for col, dtype in col_types.items():
+        if col in of_data.columns:
+            try:
+                of_data[col] = of_data[col].astype(dtype)
+            except (ValueError, TypeError):
+                # If conversion fails, try converting to numeric for float columns
+                # Check for float type (handles float, 'float', 'float64')
+                if dtype == float or (isinstance(dtype, str) and 'float' in dtype.lower()):
+                    of_data[col] = pd.to_numeric(of_data[col], errors='coerce')
+                else:
+                    logger.warning(f"Could not convert column {col} to {dtype}")
+    
     return of_data
 
 

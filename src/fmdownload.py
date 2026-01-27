@@ -1395,10 +1395,9 @@ class FMDownloader:
                 continue
             
             # Ensure column is datetime type before using .dt accessor
-            # Use direct assignment (not .loc) to ensure dtype changes from object to datetime64
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+                exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
             # Now safely use .dt accessor with .loc
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_fmt)
@@ -1415,8 +1414,7 @@ class FMDownloader:
                 # If Duration is already a string (e.g., loaded from CSV), convert via timedelta
                 exp_df.loc[:, "Duration"] = pd.to_timedelta(exp_df["Duration"], errors='coerce').dt.to_pytimedelta().astype("str")
         
-        exp_df.loc[:, "Distance"] = exp_df["Distance"].apply(utils.km_to_miles)
-        exp_df.loc[:, "Distance"] = exp_df["Distance"].astype("int64")
+        exp_df.loc[:, "Distance"] = exp_df["Distance"].apply(utils.km_to_miles).astype("int64")
         exp_df.loc[:, "Class"] = exp_df["Class"].replace(lookups.CLASS_OPENFLIGHTS_LU)
         exp_df.loc[:, "Reason"] = exp_df["Reason"].replace(lookups.REASON_OPENFLIGHTS_LU)
         exp_df.loc[:, "Seat_Type"] = exp_df["Seat_Type"].replace(lookups.SEAT_OPENFLIGHTS_LU)
@@ -1457,10 +1455,9 @@ class FMDownloader:
                 continue
             
             # Ensure column is datetime type before using .dt accessor
-            # Use direct assignment (not .loc) to ensure dtype changes from object to datetime64
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+                exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
             # Now safely use .dt accessor with .loc
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[

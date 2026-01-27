@@ -57,8 +57,8 @@ def get_openflights_data(
                 # For float columns, use pd.to_numeric which handles NaN properly
                 of_data.loc[:, col] = pd.to_numeric(of_data[col], errors='coerce')
             elif dtype == str or dtype == 'str':
-                # For string columns, fillna with empty string before conversion
-                of_data.loc[:, col] = of_data[col].fillna('').astype(str)
+                # Convert to string, replacing NaN with empty string
+                of_data.loc[:, col] = of_data[col].astype(str).replace('nan', '').replace('None', '')
             else:
                 try:
                     of_data.loc[:, col] = of_data[col].astype(dtype)

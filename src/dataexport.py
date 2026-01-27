@@ -58,7 +58,7 @@ def get_openflights_data(
                 of_data.loc[:, col] = pd.to_numeric(of_data[col], errors='coerce')
             elif dtype == str or dtype == 'str':
                 # Convert to string, replacing NaN with empty string
-                of_data.loc[:, col] = of_data[col].astype(str).replace('nan', '').replace('None', '')
+                of_data[col] = of_data[col].astype(str).replace('nan', '').replace('None', '')
             else:
                 try:
                     of_data.loc[:, col] = of_data[col].astype(dtype)

@@ -1397,7 +1397,7 @@ class FMDownloader:
             # Ensure column is datetime type before using .dt accessor
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
             # Now safely use .dt accessor with .loc
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_fmt)
@@ -1457,7 +1457,7 @@ class FMDownloader:
             # Ensure column is datetime type before using .dt accessor
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df.loc[:, dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
+                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
             
             # Now safely use .dt accessor with .loc
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[

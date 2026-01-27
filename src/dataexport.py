@@ -50,7 +50,7 @@ def get_openflights_data(
     # some null markers may still appear as strings in the data
     of_data = of_data.replace(["\\N", "-", ""], pd.NA)
     
-    # Convert types with proper handling - use .loc for all assignments
+    # Convert types with proper handling - use direct assignment for dtype changes
     for col, dtype in col_types.items():
         if col in of_data.columns:
             if dtype == float or (isinstance(dtype, str) and 'float' in str(dtype).lower()):

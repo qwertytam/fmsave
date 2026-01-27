@@ -566,14 +566,14 @@ class FMDownloader:
                 + self.df.loc[~time_is_empty, col]
             )
 
-            self.df.loc[:, col] = pd.to_datetime(self.df[col], format="mixed", dayfirst=True)
+            self.df[col] = pd.to_datetime(self.df[col], format="mixed", dayfirst=True)
 
-        self.df.loc[:, "date_as_dt"] = pd.to_datetime(
+        self.df["date_as_dt"] = pd.to_datetime(
             self.df["date"], format="mixed", dayfirst=True
         )
 
         self.df.loc[:, "date_offset"] = self.df["date_offset"].fillna(0)
-        self.df.loc[:, "date_offset"] = pd.to_timedelta(
+        self.df["date_offset"] = pd.to_timedelta(
             pd.to_numeric(self.df["date_offset"]), unit="days"
         )
         self.df.loc[:, "time_arr"] = self.df["time_arr"] + self.df["date_offset"]
@@ -1224,13 +1224,13 @@ class FMDownloader:
 
         for col in datetime_cols:
             if col in self.df.columns:
-                self.df.loc[:, col] = pd.to_datetime(
+                self.df[col] = pd.to_datetime(
                     self.df[col], format="mixed", dayfirst=False, errors="coerce"
                 )
 
         for col in timedelata_cols:
             if col in self.df.columns:
-                self.df.loc[:, col] = pd.to_timedelta(self.df[col], errors="coerce")
+                self.df[col] = pd.to_timedelta(self.df[col], errors="coerce")
 
         self.logger.debug("Have read in csv; df types:\n%s", self.df.dtypes)
 
@@ -1307,8 +1307,8 @@ class FMDownloader:
             self.fms_data_dict, "data", ["lon", "lat", "ourairports_id"]
         )
 
-        self.df.loc[:, to_str_cols] = self.df[to_str_cols].astype(str)
-        fd_updated.df.loc[:, to_str_cols] = fd_updated.df[to_str_cols].astype(str)
+        self.df[to_str_cols] = self.df[to_str_cols].astype(str)
+        fd_updated.df[to_str_cols] = fd_updated.df[to_str_cols].astype(str)
 
         exc_cols = ["flight_index"]
         self.logger.debug("self has types:\n%s", self.df.dtypes)
@@ -1342,7 +1342,7 @@ class FMDownloader:
         self.df.loc[:, non_str_cols] = self.df[non_str_cols].replace(
             r"^\s*$", np.nan, regex=True
         )
-        self.df.loc[:, non_str_cols] = self.df[non_str_cols].astype(float)
+        self.df[non_str_cols] = self.df[non_str_cols].astype(float)
 
         self.logger.debug("Have replaced empty str now have:\n%s", self.df.dtypes)
 
@@ -1409,12 +1409,12 @@ class FMDownloader:
         # Handle Duration column - check if it's a timedelta type
         if "Duration" in exp_df.columns:
             if pd.api.types.is_timedelta64_dtype(exp_df["Duration"]):
-                exp_df.loc[:, "Duration"] = exp_df["Duration"].dt.to_pytimedelta().astype("str")
+                exp_df["Duration"] = exp_df["Duration"].dt.to_pytimedelta().astype("str")
             else:
                 # If Duration is already a string (e.g., loaded from CSV), convert via timedelta
-                exp_df.loc[:, "Duration"] = pd.to_timedelta(exp_df["Duration"], errors='coerce').dt.to_pytimedelta().astype("str")
+                exp_df["Duration"] = pd.to_timedelta(exp_df["Duration"], errors='coerce').dt.to_pytimedelta().astype("str")
         
-        exp_df.loc[:, "Distance"] = exp_df["Distance"].apply(utils.km_to_miles).astype("int64")
+        exp_df["Distance"] = exp_df["Distance"].apply(utils.km_to_miles).astype("int64")
         exp_df.loc[:, "Class"] = exp_df["Class"].replace(lookups.CLASS_OPENFLIGHTS_LU)
         exp_df.loc[:, "Reason"] = exp_df["Reason"].replace(lookups.REASON_OPENFLIGHTS_LU)
         exp_df.loc[:, "Seat_Type"] = exp_df["Seat_Type"].replace(lookups.SEAT_OPENFLIGHTS_LU)
@@ -1475,12 +1475,12 @@ class FMDownloader:
                 if not pd.api.types.is_datetime64_any_dtype(exp_df[time_col]):
                     self.logger.debug("Converting %s to datetime", time_col)
                     exp_df[time_col] = pd.to_datetime(exp_df[time_col], errors='coerce')
-                exp_df.loc[:, time_col] = exp_df[time_col].dt.strftime("%H:%M")
+                exp_df[time_col] = exp_df[time_col].dt.strftime("%H:%M")
 
-        exp_df.loc[:, "duration"] = exp_df["duration"].apply(
+        exp_df["duration"] = exp_df["duration"].apply(
             lambda x: utils.strfdelta(x, "{H:02}:{M:02}")
         )
-        exp_df.loc[:, "distance"] = exp_df["distance"].apply(
+        exp_df["distance"] = exp_df["distance"].apply(
             lambda x: int(utils.km_to_miles(x))
         )
 

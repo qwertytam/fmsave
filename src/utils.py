@@ -16,12 +16,14 @@ from constants import DistanceConversions
 mpath = Path(__file__).parent.absolute()
 
 APP_NAME = "utils"
-_module_logger_name = f"{APP_NAME}.{__name__}"
-module_logger = logging.getLogger(_module_logger_name)
-module_logger.debug("Module %s logger initialized", _module_logger_name)
+_MODULE_LOGGER_NAME = f"{APP_NAME}.{__name__}"
+module_logger = logging.getLogger(_MODULE_LOGGER_NAME)
+module_logger.debug("Module %s logger initialized", _MODULE_LOGGER_NAME)
 
 
-def check_create_path(dir_path: str | Path, logger: logging.Logger = module_logger) -> None:
+def check_create_path(
+    dir_path: str | Path, logger: logging.Logger = module_logger
+) -> None:
     """
     Check if path exists, if not, creates path
 
@@ -36,7 +38,7 @@ def check_create_path(dir_path: str | Path, logger: logging.Logger = module_logg
     pat_path = r"(\\+|/+)"
     pat_file = r"\."
 
-    path_splits = re.split(pat_path, dir_path)
+    path_splits = re.split(pat_path, str(dir_path))
     fn_search = re.search(pat_file, "".join(path_splits[-1:]))
 
     fp = Path(dir_path).resolve()
@@ -54,7 +56,7 @@ def check_create_path(dir_path: str | Path, logger: logging.Logger = module_logg
     Path(fp).mkdir(parents=True, exist_ok=True)
 
 
-def list_depth(l: list[Any]) -> int:
+def list_depth(lst: list[Any]) -> int:
     """
     Find depth of nested list.
 
@@ -62,13 +64,13 @@ def list_depth(l: list[Any]) -> int:
     nested lists.
 
     Args:
-        l: List to search
+        lst: List to search
 
     Returns:
         List depth as an integer
     """
-    if isinstance(l, list) and len(l) > 0:
-        return 1 + max(list_depth(e) for e in l)
+    if isinstance(lst, list) and len(lst) > 0:
+        return 1 + max(list_depth(e) for e in lst)
     else:
         return 0
 
@@ -102,12 +104,12 @@ def get_data_dict_column_names(
     return [k for k in data_dict[top_level_parent]["columns"]]
 
 
-def get_bottom_lists(l: list[Any], max_depth: int = 1) -> list[Any]:
+def get_bottom_lists(lst: list[Any], max_depth: int = 1) -> list[Any]:
     """
     Get bottom most list(s) in a nested list
 
     Args:
-        l: List to search through
+        lst: List to search through
         max_depth: Maximum depth to get list from. 1 is bottom most, 2 is second
         from the bottom, etc.
 
@@ -115,15 +117,15 @@ def get_bottom_lists(l: list[Any], max_depth: int = 1) -> list[Any]:
         List of bottom most list(s)
     """
     res = []
-    if isinstance(l, list) and list_depth(l) > max_depth:
-        for i, _ in enumerate(l):
-            gbl = get_bottom_lists(l[i])
+    if isinstance(lst, list) and list_depth(lst) > max_depth:
+        for i, _ in enumerate(lst):
+            gbl = get_bottom_lists(lst[i])
             if list_depth(gbl) <= max_depth:
                 res.append(gbl)
             else:
                 res = gbl
-    elif isinstance(l, list) and list_depth(l) == max_depth:
-        return l
+    elif isinstance(lst, list) and list_depth(lst) == max_depth:
+        return lst
     else:
         return []
 
@@ -154,7 +156,7 @@ def get_keys_and_parents(d: dict[str, Any], value: Any) -> list[Any]:
             if p:
                 res.append([k] + p)
         elif v == value:
-            res.append(k)
+            res.append([k])
 
     return res
 
@@ -216,14 +218,16 @@ def get_parents_for_keys_with_value(d: dict[str, Any], value: Any) -> list[Any]:
     if len(kps) > 0:
         kps = get_bottom_lists(kps)
         # filter out empty lists
-        kps = [l for l in kps if len(l) > 0]
+        kps = [lst for lst in kps if len(lst) > 0]
         res = [p for p, k in kps]
     else:
         res = []
     return res
 
 
-def get_parents_for_keys_with_all_values(d: dict[str, Any], values: list[Any]) -> list[Any]:
+def get_parents_for_keys_with_all_values(
+    d: dict[str, Any], values: list[Any]
+) -> list[Any]:
     """
     Find key parents that contain all the values in a given dictionary
 
@@ -270,7 +274,7 @@ def get_parents_with_key_value(
         List of parents with matching (keys, values) as a tuple e.g.,
         '[ppp1, [pp1, [p1,  (k, v)], [p2,  (k, v)], [p3,  (k, v)]]]'.
     """
-    res = []
+    res: list[Any] = []
     for k, v in d.items():
         if isinstance(v, dict):
             p = get_parents_with_key_value(v, key, value, regex)
@@ -310,17 +314,15 @@ def get_parents_with_key_values(
     kvs = [get_parents_with_key_value(d, key, v, regex) for v in values]
     if len(kvs) > 0:
         # unpack the result
-        res = get_bottom_lists(kvs, 2)
+        unpacked = get_bottom_lists(kvs, 2)
 
         # now flatten the list of lists
-        res = [x for xs in res for x in xs]
+        flattened = [x for xs in unpacked for x in xs]
 
         # Now extract parent and value from each [p, (k, v)]
-        res = dict([(kv[0], kv[1:][0][1]) for kv in res if len(kv) > 0])
+        return {kv[0]: kv[1:][0][1] for kv in flattened if len(kv) > 0}
     else:
-        res = {}
-
-    return res
+        return {}
 
 
 def get_parents_list_with_key_values(
@@ -391,7 +393,11 @@ def replace_item(d: dict[str, Any], replace_dict: dict[Any, Any]) -> dict[str, A
 
 
 def percent_complete(
-    step: int, total_steps: int, bar_width: int = 60, title: str = "", print_perc: bool = True
+    step: int,
+    total_steps: int,
+    bar_width: int = 60,
+    title: str = "",
+    print_perc: bool = True,
 ) -> None:
     """
     Author is StackOverFlow user WinEunuuchs2Unix
@@ -491,7 +497,9 @@ def get_keys(d: dict[Any, Any]) -> list[str]:
 
 
 def strfdelta(
-    tdelta: timedelta | int | float, fmt: str = "{D:02}d {H:02}h {M:02}m {S:02}s", inputtype: str = "timedelta"
+    tdelta: timedelta | int | float,
+    fmt: str = "{D:02}d {H:02}h {M:02}m {S:02}s",
+    inputtype: str = "timedelta",
 ) -> str:
     """Convert a datetime.timedelta object or a regular number to a custom-
     formatted string, just like the stftime() method does for datetime.datetime
@@ -520,17 +528,22 @@ def strfdelta(
 
     # Convert tdelta to integer seconds.
     if inputtype == "timedelta":
+        assert isinstance(tdelta, timedelta)
         remainder = int(tdelta.total_seconds())
-    elif inputtype in ["s", "seconds"]:
-        remainder = int(tdelta)
-    elif inputtype in ["m", "minutes"]:
-        remainder = int(tdelta) * 60
-    elif inputtype in ["h", "hours"]:
-        remainder = int(tdelta) * 3600
-    elif inputtype in ["d", "days"]:
-        remainder = int(tdelta) * 86400
-    elif inputtype in ["w", "weeks"]:
-        remainder = int(tdelta) * 604800
+    else:
+        assert isinstance(tdelta, (int, float))
+        if inputtype in ["s", "seconds"]:
+            remainder = int(tdelta)
+        elif inputtype in ["m", "minutes"]:
+            remainder = int(tdelta) * 60
+        elif inputtype in ["h", "hours"]:
+            remainder = int(tdelta) * 3600
+        elif inputtype in ["d", "days"]:
+            remainder = int(tdelta) * 86400
+        elif inputtype in ["w", "weeks"]:
+            remainder = int(tdelta) * 604800
+        else:
+            remainder = int(tdelta)
 
     f = Formatter()
     desired_fields = [field_tuple[1] for field_tuple in f.parse(fmt)]

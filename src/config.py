@@ -1,8 +1,8 @@
 """Module for loading configuration from environment variables and config files."""
 
 import os
-import shutil
 from pathlib import Path
+import shutil
 import yaml
 
 CONFIG_FILENAME = ".fmsaverc"

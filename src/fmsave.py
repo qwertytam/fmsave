@@ -24,7 +24,8 @@ Commands:
   upcsv     Update existing csv file based on downloaded html pages
   uptz      Update timezone information in existing csv file
   validate  Validate distances and times are correct
-  upair     Update airport info data file; typically using https://davidmegginson.github.io/ourairports-data/airports.csv
+  upair     Update airport info data file; typically using
+    https://davidmegginson.github.io/ourairports-data/airports.csv
   upof      Update openflights data files
   upwiki    Update wikipedia data, namely IATA and ICAO aircraft type codes
   export    Export data to given format
@@ -47,15 +48,21 @@ import logging
 import logging.config
 import sys
 from pathlib import Path
-from docopt import docopt
+from docopt import docopt  # type: ignore
 import yaml
-
+import pandas as pd
 import config as cfg
 import logins
-from data import update_ourairport_data, update_openflights_data, dl_aircraft_codes, clear_data_caches
+from data import (
+    update_ourairport_data,
+    update_openflights_data,
+    dl_aircraft_codes,
+    clear_data_caches,
+)
 from fmdownload import FMDownloader
 import defaults
 import utils
+
 
 # Set up logging
 
@@ -206,20 +213,18 @@ def update_wiki():
 def show_status(fmdownloader, file_read):
     """
     Show status/statistics of flight data file
-    
+
     Args:
         fmdownloader: FMDownloader class object (or None if not available)
         file_read: fmsave csv to read
     """
-    import pandas as pd
-    from pathlib import Path
-    
+
     # Validate file exists
     file_path = Path(file_read)
     if not file_path.exists():
         print(f"Error: File not found: {file_read}")
         sys.exit(1)
-    
+
     # If fmdownloader is available, use it to read the CSV with proper types
     # Otherwise, read directly with pandas
     try:
@@ -235,48 +240,52 @@ def show_status(fmdownloader, file_read):
     except pd.errors.ParserError as e:
         print(f"Error: Failed to parse CSV file: {e}")
         sys.exit(1)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         print(f"Error: Failed to read file: {e}")
         sys.exit(1)
-    
+
     # Calculate statistics
     total_flights = len(df)
-    
+
     # Missing timezone data
     missing_tz = 0
-    if 'tzid_dep' in df.columns and 'tzid_arr' in df.columns:
+    if "tzid_dep" in df.columns and "tzid_arr" in df.columns:
         missing_tz = df[
-            df['tzid_dep'].isna() | df['tzid_arr'].isna() | 
-            (df['tzid_dep'] == '') | (df['tzid_arr'] == '')
+            df["tzid_dep"].isna()
+            | df["tzid_arr"].isna()
+            | (df["tzid_dep"] == "")
+            | (df["tzid_arr"] == "")
         ].shape[0]
-    
+
     # Missing coordinate data
     missing_coords = 0
-    coord_cols = ['lat_dep', 'lon_dep', 'lat_arr', 'lon_arr']
+    coord_cols = ["lat_dep", "lon_dep", "lat_arr", "lon_arr"]
     if all(col in df.columns for col in coord_cols):
         missing_coords = df[
-            df['lat_dep'].isna() | df['lon_dep'].isna() | 
-            df['lat_arr'].isna() | df['lon_arr'].isna()
+            df["lat_dep"].isna()
+            | df["lon_dep"].isna()
+            | df["lat_arr"].isna()
+            | df["lon_arr"].isna()
         ].shape[0]
-    
+
     # Date range
     date_range = "N/A"
-    if 'date_as_dt' in df.columns:
-        dates = pd.to_datetime(df['date_as_dt'], errors='coerce')
+    if "date_as_dt" in df.columns:
+        dates = pd.to_datetime(df["date_as_dt"], errors="coerce")
         dates = dates.dropna()
         if len(dates) > 0:
-            min_date = dates.min().strftime('%Y-%m-%d')
-            max_date = dates.max().strftime('%Y-%m-%d')
+            min_date = dates.min().strftime("%Y-%m-%d")
+            max_date = dates.max().strftime("%Y-%m-%d")
             date_range = f"{min_date} to {max_date}"
-    
+
     # Last updated
     last_updated = "N/A"
-    if 'ts' in df.columns:
-        timestamps = pd.to_datetime(df['ts'], errors='coerce')
+    if "ts" in df.columns:
+        timestamps = pd.to_datetime(df["ts"], errors="coerce")
         timestamps = timestamps.dropna()
         if len(timestamps) > 0:
-            last_updated = timestamps.max().strftime('%Y-%m-%d %H:%M:%S')
-    
+            last_updated = timestamps.max().strftime("%Y-%m-%d %H:%M:%S")
+
     # Print status
     print(f"Flight Data Status: {file_read}")
     print("=" * 44)
@@ -315,12 +324,16 @@ if __name__ == "__main__":
     # For other commands, initialize FMDownloader
     CHROME_PATH = cfg.get_chrome_path(args["<chrome_path>"])
     fd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
-    
+
     try:
         if dlhtml:
             fm_un = cfg.get_flightmemory_username(args["<fm_un>"])
             if fm_un is None:
-                print("Error: FlightMemory username required. Provide via argument, config file, or FMSAVE_FM_USERNAME environment variable.")
+                print(
+                    "Error: FlightMemory username required. "
+                    + "Provide via argument, config file, or "
+                    + "FMSAVE_FM_USERNAME environment variable."
+                )
                 sys.exit(1)
             fd.fm_un = fm_un
             save_path = args["<save_path>"]
@@ -337,7 +350,11 @@ if __name__ == "__main__":
         if tocsv:
             gn_un = cfg.get_geonames_username(args["<gn_un>"])
             if gn_un is None:
-                print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
+                print(
+                    "Error: GeoNames username required. "
+                    + "Provide via argument, config file, or "
+                    + "FMSAVE_GN_USERNAME environment variable."
+                )
                 sys.exit(1)
             if fsave is None:
                 fsave = fread
@@ -355,7 +372,11 @@ if __name__ == "__main__":
         if upcsv:
             gn_un = cfg.get_geonames_username(args["<gn_un>"])
             if gn_un is None:
-                print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
+                print(
+                    "Error: GeoNames username required. "
+                    + "Provide via argument, config file, or "
+                    + "FMSAVE_GN_USERNAME environment variable."
+                )
                 sys.exit(1)
             if fsave is None:
                 fsave = fread
@@ -366,7 +387,9 @@ if __name__ == "__main__":
             dbf = None if dbf is None else utils.date_to_dt(dbf)
             daf = None if daf is None else utils.date_to_dt(daf)
 
-            fdd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
+            fdd = FMDownloader(
+                chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS
+            )
             try:
                 update_csv(fd, fdd, gn_un, read_path, fread, fsave, dbf, daf)
             finally:
@@ -380,7 +403,11 @@ if __name__ == "__main__":
         if uptz:
             gn_un = cfg.get_geonames_username(args["<gn_un>"])
             if gn_un is None:
-                print("Error: GeoNames username required. Provide via argument, config file, or FMSAVE_GN_USERNAME environment variable.")
+                print(
+                    "Error: GeoNames username required. "
+                    + "Provide via argument, config file, or "
+                    + "FMSAVE_GN_USERNAME environment variable."
+                )
                 sys.exit(1)
             if fsave is None:
                 fsave = fread

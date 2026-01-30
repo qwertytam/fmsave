@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from geopy import distance as dist
+from geopy import distance as dist  # type: ignore
 import pandas as pd
 
 

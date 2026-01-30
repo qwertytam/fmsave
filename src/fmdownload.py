@@ -1,3 +1,5 @@
+# pylint: disable=too-many-lines
+# TODO: refactor for better modularity
 """Main module to hold functions to download and maniuplate flightmemory data"""
 
 from __future__ import annotations
@@ -11,7 +13,7 @@ import re
 import sys
 from typing import Any, Optional
 from collections.abc import Sequence
-
+import warnings
 
 from bs4 import BeautifulSoup as bs
 from selenium import webdriver
@@ -22,16 +24,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import numpy as np
 import pandas as pd
-import warnings
 
-# Opt-in to future pandas behavior to avoid FutureWarning
-pd.set_option("future.no_silent_downcasting", True)
-
-# Suppress ChainedAssignment warnings - code is written for traditional pandas behavior
-# TODO: Refactor for pandas 3.0 CoW when upgrading
-warnings.filterwarnings(
-    "ignore", category=FutureWarning, message=".*ChainedAssignmentError.*"
-)
 
 from geonames import GeoNames
 from geonames import GeoNamesDateReturnError
@@ -46,12 +39,22 @@ import dataexport
 import fmvalidate
 import lookups
 
+# Opt-in to future pandas behavior to avoid FutureWarning
+pd.set_option("future.no_silent_downcasting", True)
+
+# Suppress ChainedAssignment warnings - code is written for traditional pandas behavior
+# TODO: Refactor for pandas 3.0 CoW when upgrading
+warnings.filterwarnings(
+    "ignore", category=FutureWarning, message=".*ChainedAssignmentError.*"
+)
+
+
 mpath = Path(__file__).parent.absolute()
 
 APP_NAME = "fmsave"
-_module_logger_name = f"{APP_NAME}.{__name__}"
-module_logger = logging.getLogger(_module_logger_name)
-module_logger.info("Module %s logger initialized", _module_logger_name)
+_MODULE_LOGGER_NAME = f"{APP_NAME}.{__name__}"
+module_logger = logging.getLogger(_MODULE_LOGGER_NAME)
+module_logger.info("Module %s logger initialized", _MODULE_LOGGER_NAME)
 
 WDSCRIPT_OUTER_HTML = "return document.documentElement.outerHTML"
 FM_BASE_URL = URLs.FLIGHT_MEMORY_SIGNIN
@@ -88,9 +91,11 @@ RE_VALID_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def _get_str_for_pd(page: str) -> Any:
-    sio = io.StringIO(page)
-    soup = bs(sio, "html5lib")
-    flight_tbl = soup.select_one(".container").find_all("table", recursive=False)[1]
+    soup = bs(page, "html5lib")
+    container = soup.select_one(".container")
+    if container is None:
+        raise ValueError("Could not find '.container' element in page")
+    flight_tbl = container.find_all("table", recursive=False)[1]
     sub_tbls = flight_tbl.find_all("table", recursive=True)
 
     for sub_tbl in sub_tbls:
@@ -132,7 +137,7 @@ class FMDownloader:
             chrome_args: Options to execute Chrome browser with
         """
         _class_name = "FMDownloader"
-        _class_logger_name = f"{_module_logger_name}.{_class_name}"
+        _class_logger_name = f"{_MODULE_LOGGER_NAME}.{_class_name}"
         self.logger = logging.getLogger(_class_logger_name)
         self.logger.debug("Class %s initialized", _class_logger_name)
 
@@ -171,10 +176,9 @@ class FMDownloader:
         exc_type: Optional[type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[Any],
-    ) -> bool:
+    ) -> None:
         """Context manager exit - ensures WebDriver is closed."""
         self.close()
-        return False
 
     def login(
         self,
@@ -192,6 +196,8 @@ class FMDownloader:
             login_page: Login page URL
             timeout: Time out in seconds
         """
+        if self.driver is None:
+            raise RuntimeError("WebDriver is not initialized or has been closed")
         self.logger.info("Start login")
         self.driver.get(login_page)
 
@@ -201,15 +207,22 @@ class FMDownloader:
             password = self.fm_pw
 
         wait = WebDriverWait(self.driver, timeout)
-        wait.until(EC.element_to_be_clickable((By.NAME, "username"))).send_keys(
-            username
-        )
-        self.logger.debug("Entered Username")
 
-        wait.until(EC.element_to_be_clickable((By.NAME, "passwort"))).send_keys(
-            password
-        )
-        self.logger.debug("Entered Password")
+        if username is None:
+            raise ValueError("Username must be provided for login")
+        else:
+            wait.until(EC.element_to_be_clickable((By.NAME, "username"))).send_keys(
+                username
+            )
+            self.logger.debug("Entered Username")
+
+        if password is None:
+            raise ValueError("Password must be provided for login")
+        else:
+            wait.until(EC.element_to_be_clickable((By.NAME, "passwort"))).send_keys(
+                password
+            )
+            self.logger.debug("Entered Password")
 
         wait.until(
             EC.element_to_be_clickable(
@@ -235,15 +248,23 @@ class FMDownloader:
             sys.exit()
 
     def _get_number_of_pages(self) -> int:
+        if self.driver is None:
+            raise RuntimeError("WebDriver is not initialized or has been closed")
         select_element = self.driver.find_element(By.XPATH, '//select[@name="dbpos"]')
         select = Select(select_element)
         return len(select.options)
 
     def _get_outer_html(self) -> None:
+        if self.driver is None:
+            raise RuntimeError("WebDriver is not initialized or has been closed")
         self.pages.append(self.driver.execute_script(WDSCRIPT_OUTER_HTML))
 
     def _get_next_page(self, last_page_timeout: int = 10) -> None:
-        WebDriverWait(self.driver, last_page_timeout).until(
+        if self.driver is None:
+            raise RuntimeError("WebDriver is not initialized or has been closed")
+
+        driver = self.driver
+        WebDriverWait(driver, last_page_timeout).until(
             EC.element_to_be_clickable(
                 (By.XPATH, "//img[contains(@src,'/images/next.gif')]")
             )
@@ -509,7 +530,7 @@ class FMDownloader:
 
         wiki_data = data.get_wiki_data(data_set)
         # Apply column names and types after loading
-        wiki_data.columns = col_names
+        wiki_data.columns = pd.Index(col_names)
         wiki_data = wiki_data.astype(col_types)
 
         self.df.loc[:, match_col] = self.df[match_col].fillna("")
@@ -569,17 +590,15 @@ class FMDownloader:
     def _dates_to_dt(self) -> None:
         time_cols = utils.get_parents_for_keys_with_value(self.fms_data_dict, "time")
         self.logger.debug(
-            "\n%s", self.df.loc[0, ["date", "time_dep", "time_arr", "date_offset"]]
+            "\n%s", self.df[["date", "time_dep", "time_arr", "date_offset"]].iloc[0]
         )
 
         for col in time_cols:
             time_is_empty = self.df[col].isna()
 
-            self.df.loc[~time_is_empty, col] = (
-                self.df.loc[~time_is_empty, "date"]
-                + " "
-                + self.df.loc[~time_is_empty, col]
-            )
+            date_series = pd.Series(self.df.loc[~time_is_empty, "date"]).astype(str)
+            col_series = pd.Series(self.df.loc[~time_is_empty, col]).astype(str)
+            self.df.loc[~time_is_empty, col] = date_series.str.cat(col_series, sep=" ")
 
             self.df[col] = pd.to_datetime(self.df[col], format="mixed", dayfirst=True)
 
@@ -635,6 +654,9 @@ class FMDownloader:
         utils.percent_complete(0, num_urls)
         for i, (idx, url) in enumerate(zip(indices, urls)):
             self.logger.debug("Getting url %s out of %s: %s", i + 1, num_urls, url)
+
+            if self.driver is None:
+                raise RuntimeError("WebDriver is not initialized or has been closed")
             self.driver.get(url)
             comment = self.driver.find_element(By.NAME, "kommentar").text
             comments.append((idx, comment))
@@ -806,22 +828,23 @@ class FMDownloader:
             )[0]
             leg_data[leg_key] = data_leg_keys[leg]
 
-        for leg in leg_data.items():
-            narows = self.df[leg_data[leg]["lat"]].isna()
+        for leg, leg_cols in leg_data.items():
+            narows = self.df[leg_cols["lat"]].isna()
 
             # Taking only last four characters as added 'K' to denote
             # using keyword column
-            idents = self.df.loc[narows, leg].apply(lambda x: x[-4:]).to_list()
-            self.logger.debug("Finding for %s %s:\n%s", leg, leg_data[leg], idents)
+            leg_series = pd.Series(self.df.loc[narows, leg])
+            idents = leg_series.apply(lambda x: x[-4:]).to_list()
+            self.logger.debug("Finding for %s %s:\n%s", leg, leg_cols, idents)
 
             res_rows = airport_data["keywords"].str.contains("|".join(idents), na=False)
 
             to_cols = [
-                leg_data[leg]["name"],
-                leg_data[leg]["lat"],
-                leg_data[leg]["lon"],
-                leg_data[leg]["iso_country"],
-                leg_data[leg]["municipality"],
+                leg_cols["name"],
+                leg_cols["lat"],
+                leg_cols["lon"],
+                leg_cols["iso_country"],
+                leg_cols["municipality"],
             ]
 
             from_cols = [
@@ -1007,13 +1030,13 @@ class FMDownloader:
         self.logger.debug("leg_data is:\n%s", leg_data)
         # Use pre-compiled pattern instead of re.compile() each time
         self.logger.debug("row\n%s", row)
-        for leg_key, _ in leg_data.items():
-            tzid_col = leg_data[leg_key]["tzid"]
-            gmtoffset_col = leg_data[leg_key]["gmtoffset"]
+        for leg_key, leg_cols in leg_data.items():
+            tzid_col = leg_cols["tzid"]
+            gmtoffset_col = leg_cols["gmtoffset"]
 
-            lat = row[leg_data[leg_key]["lat"]]
-            lon = row[leg_data[leg_key]["lon"]]
-            date = row[leg_data[leg_key]["date"]]
+            lat = row[leg_cols["lat"]]
+            lon = row[leg_cols["lon"]]
+            date = row[leg_cols["date"]]
             self.logger.debug(
                 "find_tz for '%s': '%s' '%s' '%s'", leg_key, lat, lon, date
             )
@@ -1249,7 +1272,7 @@ class FMDownloader:
         )
         col_types = utils.replace_item(col_types, lookups.STR_TYPE_LU)
 
-        self.df = pd.read_csv(fp, dtype=col_types)
+        self.df = pd.read_csv(fp, dtype=col_types)  # type: ignore[arg-type]
 
         for col in datetime_cols:
             if col in self.df.columns:
@@ -1456,7 +1479,17 @@ class FMDownloader:
         exp_df["Reason"] = exp_df["Reason"].replace(lookups.REASON_OPENFLIGHTS_LU)
         exp_df["Seat_Type"] = exp_df["Seat_Type"].replace(lookups.SEAT_OPENFLIGHTS_LU)
 
-        col_loc = exp_df.columns.get_loc("Registration") + 1
+        col_loc_result = exp_df.columns.get_loc("Registration")
+        if isinstance(col_loc_result, int):
+            col_loc = col_loc_result + 1
+        elif isinstance(col_loc_result, slice):
+            # For slice, use the start value
+            col_loc = (col_loc_result.start or 0) + 1
+        elif isinstance(col_loc_result, np.ndarray):
+            # For ndarray (e.g., boolean mask), find first True index
+            col_loc = int(np.where(col_loc_result)[0][0]) + 1
+        else:
+            col_loc = 1
         exp_df.insert(loc=col_loc, column="Trip", value="")
 
         exp_df.to_csv(fsave, index=False, encoding="utf-8")

@@ -3,30 +3,30 @@
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
 import io
 from typing import Any
-import requests
 from functools import lru_cache
-from thefuzz import process
+
+import requests
+from thefuzz import process  # type: ignore
 import pandas as pd
 import yaml
-
-# Opt-in to future pandas behavior to avoid FutureWarning
-pd.set_option('future.no_silent_downcasting', True)
-import wikipedia as wp
+import wikipedia as wp  # type: ignore
 
 import utils
 from constants import URLs, FileExtensions, Timeouts
+
+# Opt-in to future pandas behavior to avoid FutureWarning
+pd.set_option("future.no_silent_downcasting", True)
 
 mpath = Path(__file__).parent.absolute()
 dpath = mpath.parent.absolute() / "data"
 
 APP_NAME = "data"
-_module_logger_name = f"{APP_NAME}.{__name__}"
-module_logger = logging.getLogger(_module_logger_name)
-module_logger.info("Module %s logger initialized", _module_logger_name)
+_MODULE_LOGGER_NAME = f"{APP_NAME}.{__name__}"
+module_logger = logging.getLogger(_MODULE_LOGGER_NAME)
+module_logger.info("Module %s logger initialized", _MODULE_LOGGER_NAME)
 
 OURAIRPORTS_DATA_FILEPATH = mpath.parent / "data/ourairports/airports.csv"
 
@@ -62,7 +62,9 @@ def get_yaml(
     return y
 
 
-def _write_data(fp: Path | str, data: bytes, logger: logging.Logger = module_logger) -> Path:
+def _write_data(
+    fp: Path | str, data: bytes, logger: logging.Logger = module_logger
+) -> Path:
     fp = Path(fp).resolve()
     logger.debug("Writing data to: %s", fp)
     with open(fp, mode="wb") as f:
@@ -144,11 +146,9 @@ def dl_aircraft_codes(logger: logging.Logger = module_logger) -> None:
 
     df = _dl_wikipedia_table(page, table_no, logger)
 
-    icao_col = df.filter(regex=re.compile(r"icao", re.IGNORECASE)).columns.to_list()[0]
-    iata_col = df.filter(regex=re.compile(r"iata", re.IGNORECASE)).columns.to_list()[0]
-    model_col = df.filter(regex=re.compile(r"model", re.IGNORECASE)).columns.to_list()[
-        0
-    ]
+    icao_col = df.filter(regex=r"(?i)icao").columns.to_list()[0]
+    iata_col = df.filter(regex=r"(?i)iata").columns.to_list()[0]
+    model_col = df.filter(regex=r"(?i)model").columns.to_list()[0]
 
     df = df.rename(
         columns={
@@ -164,9 +164,9 @@ def dl_aircraft_codes(logger: logging.Logger = module_logger) -> None:
 
 def _get_data(
     filepath: Path,
-    header: int | None = 0,
-    index_col: int | bool | None = None,
-    na_values: list[str] | None = None,
+    header: int | None = 0,  # pylint: disable=unused-argument
+    index_col: int | bool | None = None,  # pylint: disable=unused-argument
+    na_values: list[str] | None = None,  # pylint: disable=unused-argument
     **kwargs: Any,
 ) -> pd.DataFrame:
     filepath = Path(filepath).resolve()
@@ -191,9 +191,7 @@ def get_openflights_data(
     supp = "_supplemental" if supplemental else ""
     fn = data_set + supp + OPENFLIGHTS_FILE_EXT
     fp = OPENFLIGHTS_DATA_FP_BASE / fn
-    return _get_data(
-        fp, header=header, index_col=False, na_values=["\\N", "-"]
-    )
+    return _get_data(fp, header=header, index_col=False, na_values=["\\N", "-"])
 
 
 @lru_cache(maxsize=1)
@@ -313,11 +311,11 @@ def get_wiki_data(data_set: str = "aircraft", header: int = 0) -> pd.DataFrame:
     """
     fn = data_set + ".csv"
     fp = WIKI_DATA_FP_BASE / fn
-    df = _get_data(fp, header=header, index_col=False, na_values="—")
+    df = _get_data(fp, header=header, index_col=False, na_values=["—"])
 
     fn = data_set + "_supplemental" + ".csv"
     fp = WIKI_DATA_FP_BASE / fn
-    supp = _get_data(fp, header=header, index_col=False, na_values="—")
+    supp = _get_data(fp, header=header, index_col=False, na_values=["—"])
 
     df = pd.concat([df, supp], ignore_index=True)
     df = df.drop_duplicates()

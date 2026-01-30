@@ -23,9 +23,9 @@ from constants import URLs, Timeouts, APILimits
 
 
 APP_NAME = "fmsave"
-_module_logger_name = f"{APP_NAME}.{__name__}"
-module_logger = logging.getLogger(_module_logger_name)
-module_logger.debug("Module %s logger initialized", _module_logger_name)
+_MODULE_LOGGER_NAME = f"{APP_NAME}.{__name__}"
+module_logger = logging.getLogger(_MODULE_LOGGER_NAME)
+module_logger.debug("Module %s logger initialized", _MODULE_LOGGER_NAME)
 
 # Module-level cache for timezone lookups
 _tz_cache: dict[tuple[float, float, str], dict[str, Any]] = {}
@@ -58,7 +58,7 @@ class GeoNames:
             user_agent user agent for api request
         """
         _class_name = "GeoNames"
-        _class_logger_name = f"{_module_logger_name}.{_class_name}"
+        _class_logger_name = f"{_MODULE_LOGGER_NAME}.{_class_name}"
         self.logger = logging.getLogger(_class_logger_name)
         self.logger.debug("Class %s initialized, _class_logger_name")
 
@@ -143,12 +143,18 @@ class GeoNames:
 
     def _parse_response(self, response: dict[str, Any]) -> dict[str, Any]:
         self.logger.debug(response)
-        lat = float(response.get("lat"))
-        lon = float(response.get("lng"))
+        lat = response.get("lat")
+        lon = response.get("lng")
+        if lat is None or lon is None:
+            raise ValueError("Latitude or Longitude is missing in the response")
+        lat = float(lat)
+        lon = float(lon)
         tz_id = response.get("timezoneId")
         dates = response.get("dates")
 
         try:
+            if dates is None or not isinstance(dates, list) or len(dates) < 2:
+                raise TypeError("dates is missing or has insufficient elements")
             date = dates[0].get("date")
             gmt_offset = float(dates[1].get("offsetToGmt"))
         except TypeError as err:
@@ -176,7 +182,7 @@ class GeoNames:
     ) -> dict[str, Any]:
         """
         Find the timezone for a lat, lon and date
-        
+
         Results are cached by (rounded lat, rounded lon, date) to avoid
         redundant API calls for the same location and date.
 
@@ -195,16 +201,16 @@ class GeoNames:
         # (4 decimal places = ~11 meters precision, sufficient for timezone)
         lat_rounded = round(lat, 4)
         lon_rounded = round(lon, 4)
-        
+
         cache_key = (lat_rounded, lon_rounded, date)
-        
+
         # Check cache first
         if cache_key in _tz_cache:
             self.logger.debug("Cache hit for timezone lookup: %s", cache_key)
             return _tz_cache[cache_key]
-        
+
         self.logger.debug("Cache miss for timezone lookup: %s", cache_key)
-        
+
         params = {
             "lat": lat,
             "lng": lon,
@@ -214,8 +220,8 @@ class GeoNames:
         result = self._call_geonames(
             self.url, params, self._parse_response, timeout, maxretries
         )
-        
+
         # Store in cache
         _tz_cache[cache_key] = result
-        
+
         return result

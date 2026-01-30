@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import logging
+from typing import cast
 import warnings
 import pandas as pd
-from thefuzz import process
+from pandas.api.types import pandas_dtype  # noqa: F401  pylint: disable=unused-import
+from thefuzz import process  # type: ignore
+import data
+import utils
+import lookups
+
 
 # Opt-in to future pandas behavior to avoid FutureWarning
 pd.set_option("future.no_silent_downcasting", True)
@@ -15,10 +21,6 @@ pd.set_option("future.no_silent_downcasting", True)
 warnings.filterwarnings(
     "ignore", category=FutureWarning, message=".*ChainedAssignmentError.*"
 )
-
-import data
-import utils
-import lookups
 
 
 def get_openflights_data(
@@ -60,19 +62,19 @@ def get_openflights_data(
     # Convert types with proper handling - direct assignment on copied DataFrame
     for col, dtype in col_types.items():
         if col in of_data.columns:
-            if dtype == float or (
+            if dtype is float or (
                 isinstance(dtype, str) and "float" in str(dtype).lower()
             ):
                 # For float columns, use pd.to_numeric which handles NaN properly
                 of_data[col] = pd.to_numeric(of_data[col], errors="coerce")
-            elif dtype == str or dtype == "str":
+            elif dtype is str or dtype == "str":
                 # Convert to string, replacing NaN with empty string
                 of_data[col] = (
                     of_data[col].astype(str).replace("nan", "").replace("None", "")
                 )
             else:
                 try:
-                    of_data[col] = of_data[col].astype(dtype)
+                    of_data[col] = of_data[col].astype(cast(type, dtype))
                 except (ValueError, TypeError) as e:
                     logger.warning(f"Could not convert column {col} to {dtype}: {e}")
 

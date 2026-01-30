@@ -49,12 +49,6 @@ class URLs:
     )
 
 
-class ChromeDefaults:
-    """Default Chrome/Chromium settings."""
-
-    DEFAULT_PATH = "/Applications/Chromium.app/Contents/MacOS/Chromium"
-
-
 class FileExtensions:
     """File extensions used in the application."""
 

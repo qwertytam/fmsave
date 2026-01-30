@@ -161,6 +161,52 @@ def get_keys_and_parents(d: dict[str, Any], value: Any) -> list[Any]:
     return res
 
 
+def _extract_parents_from_nested(lst: list[Any], parents: list[str] | None = None) -> list[str]:
+    """
+    Extract parent keys from nested list structure returned by get_keys_and_parents.
+    
+    For a structure like ['airports', ['columns', ['time_dep', ['data']], ['time_arr', ['data']]]]
+    this returns ['time_dep', 'time_arr'] - the keys whose children contain the searched value.
+    
+    Args:
+        lst: Nested list from get_keys_and_parents
+        parents: Accumulated parent keys (used in recursion)
+        
+    Returns:
+        List of parent keys that contain the searched value
+    """
+    if parents is None:
+        parents = []
+    
+    result = []
+    
+    if not isinstance(lst, list) or len(lst) == 0:
+        return result
+    
+    # Check if this is a leaf node [key] where key is a string
+    if len(lst) == 1 and isinstance(lst[0], str):
+        # This is a terminal [key] - the parent we want is in `parents`
+        if parents:
+            result.append(parents[-1])
+        return result
+    
+    # Check if first element is a string (a key) followed by nested lists
+    if isinstance(lst[0], str):
+        key = lst[0]
+        new_parents = parents + [key]
+        # Process remaining elements
+        for item in lst[1:]:
+            if isinstance(item, list):
+                result.extend(_extract_parents_from_nested(item, new_parents))
+    else:
+        # It's a list of lists - process each
+        for item in lst:
+            if isinstance(item, list):
+                result.extend(_extract_parents_from_nested(item, parents))
+    
+    return result
+
+
 def get_parents_for_keys_with_value(d: dict[str, Any], value: Any) -> list[Any]:
     """
     Get parents of keys from dictionary that have the given value
@@ -216,10 +262,7 @@ def get_parents_for_keys_with_value(d: dict[str, Any], value: Any) -> list[Any]:
     """
     kps = get_keys_and_parents(d, value)
     if len(kps) > 0:
-        kps = get_bottom_lists(kps)
-        # filter out empty lists
-        kps = [lst for lst in kps if len(lst) > 0]
-        res = [p for p, k in kps]
+        res = _extract_parents_from_nested(kps)
     else:
         res = []
     return res

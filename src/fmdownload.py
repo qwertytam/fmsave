@@ -48,6 +48,11 @@ warnings.filterwarnings(
     "ignore", category=FutureWarning, message=".*ChainedAssignmentError.*"
 )
 
+# Suppress RuntimeWarning from pandas timedelta operations with NaT values
+warnings.filterwarnings(
+    "ignore", category=RuntimeWarning, message=".*invalid value encountered in cast.*"
+)
+
 
 mpath = Path(__file__).parent.absolute()
 
@@ -465,7 +470,7 @@ class FMDownloader:
         self.df.loc[:, ["dist", "dist_units", "duration", "duration_units"]] = (
             self.df["dist_duration"].str.split("\\|\\|", expand=True).values
         )
-        self.df.loc[:, "dist"] = pd.to_numeric(self.df["dist"].str.replace(",", ""))
+        self.df["dist"] = pd.to_numeric(self.df["dist"].str.replace(",", ""))
 
     def _split_seat_col(self) -> None:
         expected_cols = 4
@@ -606,7 +611,7 @@ class FMDownloader:
             self.df["date"], format="mixed", dayfirst=True
         )
 
-        self.df.loc[:, "date_offset"] = self.df["date_offset"].fillna(0)
+        self.df.loc[:, "date_offset"] = self.df["date_offset"].fillna("0")
         self.df["date_offset"] = pd.to_timedelta(
             pd.to_numeric(self.df["date_offset"]), unit="days"
         )
@@ -614,12 +619,12 @@ class FMDownloader:
 
     def _duration_to_td(self) -> None:
         dur_hr_min = self.df["duration"].str.split(":", expand=True).astype(int)
-        self.df.loc[:, "duration"] = pd.to_timedelta(
+        self.df["duration"] = pd.to_timedelta(
             dur_hr_min[0], unit="h"
         ) + pd.to_timedelta(dur_hr_min[1], unit="m")
 
     def _comments_detailurl(self) -> None:
-        self.df.loc[:, "comments"] = self.df["comments_detail_url"].str.contains(
+        self.df["comments"] = self.df["comments_detail_url"].str.contains(
             pat=RE_NOTE, regex=True
         )
 
@@ -1147,7 +1152,16 @@ class FMDownloader:
         else:
             self.logger.debug("Adding new_cols: %s", new_cols)
             for new_col in new_cols:
-                self.df.loc[:, new_col] = ""
+                # Use appropriate initial value based on expected type
+                if "gmtoffset" in new_col:
+                    self.df[new_col] = np.nan  # Float columns
+                else:
+                    self.df[new_col] = ""  # String columns (tzid)
+
+        # Ensure gmtoffset columns have correct dtype (float)
+        for tz_col in tz_cols:
+            if "gmtoffset" in tz_col and tz_col in self.df.columns:
+                self.df[tz_col] = pd.to_numeric(self.df[tz_col], errors="coerce")
 
         # Determine which rows we want to update
         if update_blanks_only:
@@ -1214,7 +1228,11 @@ class FMDownloader:
                     self.logger.debug("Updating index %s", index)
                     row = self._add_tz(row, gn=gn)
                     for tz_col in tz_cols:
-                        self.df.loc[index, tz_col] = row[tz_col]
+                        value = row[tz_col]
+                        # Convert float to string for string columns if needed
+                        if "gmtoffset" not in tz_col and isinstance(value, float):
+                            value = str(value) if not pd.isna(value) else ""
+                        self.df.at[index, tz_col] = value
                 except GeoNamesStopError as err:
                     self.logger.error("Stopping due to:\n%s", err)
                     break
@@ -1276,13 +1294,13 @@ class FMDownloader:
 
         for col in datetime_cols:
             if col in self.df.columns:
-                self.df.loc[:, col] = pd.to_datetime(
+                self.df[col] = pd.to_datetime(
                     self.df[col], format="mixed", dayfirst=False, errors="coerce"
                 )
 
         for col in timedelata_cols:
             if col in self.df.columns:
-                self.df.loc[:, col] = pd.to_timedelta(self.df[col], errors="coerce")
+                self.df[col] = pd.to_timedelta(self.df[col], errors="coerce")
 
         self.logger.debug("Have read in csv; df types:\n%s", self.df.dtypes)
 
@@ -1402,23 +1420,23 @@ class FMDownloader:
         """
         Validate distances and times are correct
         """
-        self.df.loc[:, "dist_validated"] = fmvalidate.calc_distance(
+        self.df["dist_validated"] = fmvalidate.calc_distance(
             self.df, "lat_dep", "lon_dep", "lat_arr", "lon_arr"
         )
-        self.df.loc[:, "dist_pct_err"] = (
+        self.df["dist_pct_err"] = (
             (self.df["dist"] - self.df["dist_validated"]) / self.df["dist"] * 100
         )
-        self.df.loc[:, "dist_pct_err"] = self.df["dist_pct_err"].abs()
+        self.df["dist_pct_err"] = self.df["dist_pct_err"].abs()
 
-        self.df.loc[:, "duration_validated"] = fmvalidate.calc_duration(
+        self.df["duration_validated"] = fmvalidate.calc_duration(
             self.df, "time_dep", "time_arr", "gmtoffset_dep", "gmtoffset_arr"
         )
-        self.df.loc[:, "dur_pct_err"] = (
+        self.df["dur_pct_err"] = (
             (self.df["duration"] - self.df["duration_validated"])
             / self.df["duration"]
             * 100
         )
-        self.df.loc[:, "dur_pct_err"] = self.df["dist_pct_err"].abs()
+        self.df["dur_pct_err"] = self.df["dist_pct_err"].abs()
 
     def _export_to_openflights(self, fsave: str) -> None:
         exp_format = "openflights"

@@ -2,9 +2,9 @@
 
 import os
 from pathlib import Path
+import shutil
 import yaml
 
-DEFAULT_CHROME_PATH = "/Applications/Chromium.app/Contents/MacOS/Chromium"
 CONFIG_FILENAME = ".fmsaverc"
 
 
@@ -122,17 +122,33 @@ def get_chrome_path(cli_value=None):
     """
     Get Chrome/Chromium path from CLI, environment, or config file.
 
+    Priority (highest to lowest):
+    1. CLI value
+    2. Config file/environment variable
+    3. Auto-discovery via shutil.which (chromium, google-chrome, chrome)
+
     Args:
         cli_value: Value provided via command line argument
 
     Returns:
-        Path to Chrome executable
+        Path to Chrome executable, or None if no browser is found
     """
     if cli_value:
         return cli_value
 
     config = get_config()
-    return config.get("chrome_path", DEFAULT_CHROME_PATH)
+    configured_path = config.get("chrome_path")
+    if configured_path:
+        return configured_path
+
+    # Try to find Chrome/Chromium in the system PATH
+    for browser in ["chromium", "google-chrome", "chrome"]:
+        browser_path = shutil.which(browser)
+        if browser_path:
+            return browser_path
+
+    # If nothing found, return None and let the caller handle it
+    return None
 
 
 def get_default_data_path():

@@ -323,6 +323,14 @@ if __name__ == "__main__":
 
     # For other commands, initialize FMDownloader
     CHROME_PATH = cfg.get_chrome_path(args["<chrome_path>"])
+    if CHROME_PATH is None:
+        print(
+            "Error: Chrome/Chromium executable not found. "
+            + "Please install Chrome, Chromium, or Google Chrome, "
+            + "or provide the path via argument, config file, or "
+            + "FMSAVE_CHROME_PATH environment variable."
+        )
+        sys.exit(1)
     fd = FMDownloader(chrome_path=CHROME_PATH, chrome_args=defaults.CHROME_OPTIONS)
 
     try:

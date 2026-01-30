@@ -122,11 +122,16 @@ def get_chrome_path(cli_value=None):
     """
     Get Chrome/Chromium path from CLI, environment, or config file.
 
+    Priority (highest to lowest):
+    1. CLI value
+    2. Config file/environment variable
+    3. Auto-discovery via shutil.which (chromium, google-chrome, chrome)
+
     Args:
         cli_value: Value provided via command line argument
 
     Returns:
-        Path to Chrome executable
+        Path to Chrome executable, or None if no browser is found
     """
     if cli_value:
         return cli_value

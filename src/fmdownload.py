@@ -22,9 +22,16 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import numpy as np
 import pandas as pd
+import warnings
 
 # Opt-in to future pandas behavior to avoid FutureWarning
-pd.set_option('future.no_silent_downcasting', True)
+pd.set_option("future.no_silent_downcasting", True)
+
+# Suppress ChainedAssignment warnings - code is written for traditional pandas behavior
+# TODO: Refactor for pandas 3.0 CoW when upgrading
+warnings.filterwarnings(
+    "ignore", category=FutureWarning, message=".*ChainedAssignmentError.*"
+)
 
 from geonames import GeoNames
 from geonames import GeoNamesDateReturnError
@@ -359,9 +366,9 @@ class FMDownloader:
 
         # For the date with day offset case, need to ensure there are three
         # spaces for when we split into four columns
-        self.df.loc[:, "date_dept_arr_offset"] = self.df["date_dept_arr_offset"].str.replace(
-            pat=RE_DATE_OFFSET, repl=r"\1   \2", regex=True
-        )
+        self.df.loc[:, "date_dept_arr_offset"] = self.df[
+            "date_dept_arr_offset"
+        ].str.replace(pat=RE_DATE_OFFSET, repl=r"\1   \2", regex=True)
 
         expected_cols = 4
         str_split = self.df["date_dept_arr_offset"].str.split(
@@ -380,7 +387,9 @@ class FMDownloader:
             self.logger.debug("only three columns, adding one more")
             str_split[3] = pd.Series("", index=str_split.index)
 
-        self.df.loc[:, ["date", "time_dep", "time_arr", "date_offset"]] = str_split.values
+        self.df.loc[:, ["date", "time_dep", "time_arr", "date_offset"]] = (
+            str_split.values
+        )
 
         self.df.loc[:, "dt_info"] = None
 
@@ -402,7 +411,9 @@ class FMDownloader:
         )
 
         # year, month, day only available - use pre-compiled pattern
-        condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(RE_DATE_YMD))
+        condition = (self.df["dt_info"].isna()) & (
+            self.df["date"].str.match(RE_DATE_YMD)
+        )
         self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_YMD.value
 
         self.df.loc[condition, "date"] = self.df.loc[condition, "date"].str.replace(
@@ -411,7 +422,9 @@ class FMDownloader:
 
         # year, month only available - use pre-compiled pattern
         repl_ym = r"\2-\1"
-        condition = (self.df["dt_info"].isna()) & (self.df["date"].str.match(RE_DATE_YM))
+        condition = (self.df["dt_info"].isna()) & (
+            self.df["date"].str.match(RE_DATE_YM)
+        )
         self.df.loc[condition, "dt_info"] = lookups.DateTimeInfo.DT_INFO_YM.value
 
         self.df.loc[condition, "date"] = self.df.loc[condition, "date"].str.replace(
@@ -428,9 +441,9 @@ class FMDownloader:
         )
 
     def _split_dist_col(self) -> None:
-        self.df.loc[:, ["dist", "dist_units", "duration", "duration_units"]] = self.df[
-            "dist_duration"
-        ].str.split("\\|\\|", expand=True).values
+        self.df.loc[:, ["dist", "dist_units", "duration", "duration_units"]] = (
+            self.df["dist_duration"].str.split("\\|\\|", expand=True).values
+        )
         self.df.loc[:, "dist"] = pd.to_numeric(self.df["dist"].str.replace(",", ""))
 
     def _split_seat_col(self) -> None:
@@ -453,9 +466,9 @@ class FMDownloader:
 
         self.df.loc[:, ["seat_position", "class", "role", "reason"]] = str_split.values
 
-        self.df.loc[:, ["seat", "position"]] = self.df["seat_position"].str.split(
-            "\\/", expand=True
-        ).values
+        self.df.loc[:, ["seat", "position"]] = (
+            self.df["seat_position"].str.split("\\/", expand=True).values
+        )
 
         move_col_rows = self.df["class"].isin(lookups.FM_ROLE)
         self.df.loc[move_col_rows, "reason"] = self.df.loc[move_col_rows, "role"]
@@ -476,7 +489,9 @@ class FMDownloader:
             self.logger.debug("only two columns, adding one more")
             str_split[2] = pd.Series("", index=str_split.index)
 
-        self.df.loc[:, ["airplane_type", "airplane_reg", "airplane_name"]] = str_split.values
+        self.df.loc[:, ["airplane_type", "airplane_reg", "airplane_name"]] = (
+            str_split.values
+        )
 
     def _add_airplane_types(self) -> None:
         data_format = "wiki"
@@ -610,13 +625,13 @@ class FMDownloader:
         mask = self.df[filter_cols].all(axis=1)
         urls = self.df.loc[mask, "detail_url"].tolist()
         indices = self.df.loc[mask].index.tolist()
-        
+
         num_urls = len(urls)
         self.logger.debug("Have %s urls to get", num_urls)
-        
+
         # Pre-allocate comments list for batch update
         comments = []
-        
+
         utils.percent_complete(0, num_urls)
         for i, (idx, url) in enumerate(zip(indices, urls)):
             self.logger.debug("Getting url %s out of %s: %s", i + 1, num_urls, url)
@@ -624,14 +639,16 @@ class FMDownloader:
             comment = self.driver.find_element(By.NAME, "kommentar").text
             comments.append((idx, comment))
             utils.percent_complete(i + 1, num_urls)
-        
+
         print("\n")
-        
+
         # Batch update instead of updating one row at a time
         for idx, comment in comments:
             self.df.loc[idx, "comment"] = comment
-        
-        self.df.loc[:, "comment"] = self.df["comment"].str.replace(r"\n", "", regex=True)
+
+        self.df.loc[:, "comment"] = self.df["comment"].str.replace(
+            r"\n", "", regex=True
+        )
 
     def links_from_options(self, table) -> list[str]:
         """
@@ -662,9 +679,9 @@ class FMDownloader:
             self.df.loc[:, "date_filter"] = self.df["date_as_dt"] <= dates_before
 
         if dates_after:
-            self.df.loc[:, "date_filter"] = (self.df["date_as_dt"] >= dates_after) & self.df[
-                "date_filter"
-            ]
+            self.df.loc[:, "date_filter"] = (
+                self.df["date_as_dt"] >= dates_after
+            ) & self.df["date_filter"]
 
     def fm_pages_to_pandas(
         self,
@@ -756,7 +773,9 @@ class FMDownloader:
             inplace=True,
         )
 
-        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(copy=False)
+        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(
+            copy=False
+        )
         self.df.loc[:, "ts"] = dt.now()
 
     def _try_keyword_lat_lon(self, airport_data: pd.DataFrame) -> None:
@@ -815,7 +834,9 @@ class FMDownloader:
 
             self.df.loc[narows, to_cols] = airport_data.loc[res_rows, from_cols].values
 
-        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(copy=False)
+        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(
+            copy=False
+        )
 
     def _fuzzy_match_airports(
         self,
@@ -941,7 +962,9 @@ class FMDownloader:
             }
         )
 
-        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(copy=False)
+        self.df = self.df.replace(r"^\s*$", np.nan, regex=True).infer_objects(
+            copy=False
+        )
         self.logger.debug(
             "Have added airport lat and lon data now have:\n%s", self.df.dtypes
         )
@@ -1003,7 +1026,13 @@ class FMDownloader:
                     "Valid formats for %s; lat %s, lon %s", date, lat, lon
                 )
                 try:
-                    tz = gn.find_tz(lat, lon, date, timeout=Timeouts.API_CALL, maxretries=APILimits.GEONAMES_MAX_RETRIES)
+                    tz = gn.find_tz(
+                        lat,
+                        lon,
+                        date,
+                        timeout=Timeouts.API_CALL,
+                        maxretries=APILimits.GEONAMES_MAX_RETRIES,
+                    )
                 except GeoNamesDateReturnError:
                     self.logger.debug("GeoNamesDateReturnError; using EMPTY_TZ_DICT")
                     tz = self._return_empty_tz_dict(row)
@@ -1100,8 +1129,8 @@ class FMDownloader:
         # Determine which rows we want to update
         if update_blanks_only:
             # Check for empty strings or NaN values in timezone columns
-            rows_to_update = (
-                (self.df[tz_cols].isna() | (self.df[tz_cols] == "")).any(axis=1)
+            rows_to_update = (self.df[tz_cols].isna() | (self.df[tz_cols] == "")).any(
+                axis=1
             )
             rows_to_update = rows_to_update & (
                 (self.df["dt_info"] == lookups.DateTimeInfo.DT_INFO_YMDT.value)
@@ -1224,13 +1253,13 @@ class FMDownloader:
 
         for col in datetime_cols:
             if col in self.df.columns:
-                self.df[col] = pd.to_datetime(
+                self.df.loc[:, col] = pd.to_datetime(
                     self.df[col], format="mixed", dayfirst=False, errors="coerce"
                 )
 
         for col in timedelata_cols:
             if col in self.df.columns:
-                self.df[col] = pd.to_timedelta(self.df[col], errors="coerce")
+                self.df.loc[:, col] = pd.to_timedelta(self.df[col], errors="coerce")
 
         self.logger.debug("Have read in csv; df types:\n%s", self.df.dtypes)
 
@@ -1371,7 +1400,7 @@ class FMDownloader:
     def _export_to_openflights(self, fsave: str) -> None:
         exp_format = "openflights"
         exp_df = dataexport.match_openflights_airports(self.df.copy(), self.logger)
-        exp_df = dataexport.match_openflights_airlines(exp_df, self.logger)
+        exp_df = dataexport.match_openflights_airlines(exp_df, self.logger).copy()
 
         exp_data_dict = data.get_yaml(exp_format, exp_format, logger=self.logger)
         col_renames = utils.get_parents_with_key_values(
@@ -1380,44 +1409,52 @@ class FMDownloader:
         col_renames = utils.swap_keys_values(col_renames)
 
         # Initialize date_as_str column
-        exp_df.loc[:, "date_as_str"] = ""
+        exp_df["date_as_str"] = ""
 
         for fmt_key, _ in lookups.DT_FMTS.items():
             fmt_rows = exp_df["dt_info"] == fmt_key
             if not fmt_rows.any():
                 continue
-                
+
             dt_fmt = lookups.DT_FMTS[fmt_key]["fmt"]
             dt_col = lookups.DT_FMTS[fmt_key]["srccol"]
-            
+
             if dt_col not in exp_df.columns:
                 self.logger.warning("Column %s not found in DataFrame", dt_col)
                 continue
-            
+
             # Ensure column is datetime type before using .dt accessor
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
-            
+                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors="coerce")
+
             # Now safely use .dt accessor with .loc
-            exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[fmt_rows, dt_col].dt.strftime(dt_fmt)
+            exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[
+                fmt_rows, dt_col
+            ].dt.strftime(dt_fmt)
 
         exp_cols = utils.get_keys(col_renames)
         exp_cols = [x for x in exp_cols if x in set(exp_df.columns)]
-        exp_df = exp_df[exp_cols].rename(columns=col_renames)
+        exp_df = exp_df[exp_cols].rename(columns=col_renames).copy()
 
         # Handle Duration column - check if it's a timedelta type
         if "Duration" in exp_df.columns:
             if pd.api.types.is_timedelta64_dtype(exp_df["Duration"]):
-                exp_df["Duration"] = exp_df["Duration"].dt.to_pytimedelta().astype("str")
+                exp_df["Duration"] = (
+                    exp_df["Duration"].dt.to_pytimedelta().astype("str")
+                )
             else:
                 # If Duration is already a string (e.g., loaded from CSV), convert via timedelta
-                exp_df["Duration"] = pd.to_timedelta(exp_df["Duration"], errors='coerce').dt.to_pytimedelta().astype("str")
-        
+                exp_df["Duration"] = (
+                    pd.to_timedelta(exp_df["Duration"], errors="coerce")
+                    .dt.to_pytimedelta()
+                    .astype("str")
+                )
+
         exp_df["Distance"] = exp_df["Distance"].apply(utils.km_to_miles).astype("int64")
-        exp_df.loc[:, "Class"] = exp_df["Class"].replace(lookups.CLASS_OPENFLIGHTS_LU)
-        exp_df.loc[:, "Reason"] = exp_df["Reason"].replace(lookups.REASON_OPENFLIGHTS_LU)
-        exp_df.loc[:, "Seat_Type"] = exp_df["Seat_Type"].replace(lookups.SEAT_OPENFLIGHTS_LU)
+        exp_df["Class"] = exp_df["Class"].replace(lookups.CLASS_OPENFLIGHTS_LU)
+        exp_df["Reason"] = exp_df["Reason"].replace(lookups.REASON_OPENFLIGHTS_LU)
+        exp_df["Seat_Type"] = exp_df["Seat_Type"].replace(lookups.SEAT_OPENFLIGHTS_LU)
 
         col_loc = exp_df.columns.get_loc("Registration") + 1
         exp_df.insert(loc=col_loc, column="Trip", value="")
@@ -1446,19 +1483,19 @@ class FMDownloader:
             fmt_rows = exp_df["dt_info"] == fmt_key
             if not fmt_rows.any():
                 continue
-                
+
             dt_dmt = lookups.DT_FMTS[fmt_key]["myflightpath_fmt"]
             dt_col = lookups.DT_FMTS[fmt_key]["srccol"]
-            
+
             if dt_col not in exp_df.columns:
                 self.logger.warning("Column %s not found in DataFrame", dt_col)
                 continue
-            
+
             # Ensure column is datetime type before using .dt accessor
             if not pd.api.types.is_datetime64_any_dtype(exp_df[dt_col]):
                 self.logger.debug("Converting %s to datetime", dt_col)
-                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors='coerce')
-            
+                exp_df[dt_col] = pd.to_datetime(exp_df[dt_col], errors="coerce")
+
             # Now safely use .dt accessor with .loc
             exp_df.loc[fmt_rows, "date_as_str"] = exp_df.loc[
                 fmt_rows, dt_col
@@ -1474,7 +1511,7 @@ class FMDownloader:
             if time_col in exp_df.columns:
                 if not pd.api.types.is_datetime64_any_dtype(exp_df[time_col]):
                     self.logger.debug("Converting %s to datetime", time_col)
-                    exp_df[time_col] = pd.to_datetime(exp_df[time_col], errors='coerce')
+                    exp_df[time_col] = pd.to_datetime(exp_df[time_col], errors="coerce")
                 exp_df[time_col] = exp_df[time_col].dt.strftime("%H:%M")
 
         exp_df["duration"] = exp_df["duration"].apply(
@@ -1488,7 +1525,9 @@ class FMDownloader:
 
         exp_df.loc[:, "seat_type"] = exp_df["seat_type"].str.lower()
         exp_df.loc[:, "class"] = exp_df["class"].replace(lookups.CLASS_MYFLIGHTPATH_LU)
-        exp_df.loc[:, "reason"] = exp_df["reason"].replace(lookups.REASON_MYFLIGHTPATH_LU)
+        exp_df.loc[:, "reason"] = exp_df["reason"].replace(
+            lookups.REASON_MYFLIGHTPATH_LU
+        )
 
         exp_df.loc[:, "is_public"] = "Y"
 

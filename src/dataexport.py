@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import logging
+import warnings
 import pandas as pd
 from thefuzz import process
 
 # Opt-in to future pandas behavior to avoid FutureWarning
-pd.set_option('future.no_silent_downcasting', True)
+pd.set_option("future.no_silent_downcasting", True)
+
+# Suppress ChainedAssignment warnings - code is written for traditional pandas behavior
+# TODO: Refactor for pandas 3.0 CoW when upgrading
+warnings.filterwarnings(
+    "ignore", category=FutureWarning, message=".*ChainedAssignmentError.*"
+)
 
 import data
 import utils
@@ -37,34 +44,38 @@ def get_openflights_data(
     )
     col_types = utils.replace_item(col_types, lookups.STR_TYPE_LU)
 
-    # Get data and IMMEDIATELY make a copy to avoid CoW issues with cached data
-    of_data = data.get_openflights_data(
-        data_set, supplemental=supplemental
-    ).copy()
-    
+    # Get data and IMMEDIATELY make a deep copy to avoid CoW issues with cached data
+    of_data = data.get_openflights_data(data_set, supplemental=supplemental).copy(
+        deep=True
+    )
+
     # Apply column names
     of_data.columns = col_names
-    
+
     # Replace any remaining null markers with NaN before type conversion
     # Note: While data.get_openflights_data() uses na_values parameter,
     # some null markers may still appear as strings in the data
     of_data = of_data.replace(["\\N", "-", ""], pd.NA)
-    
-    # Convert types with proper handling - use direct assignment for dtype changes
+
+    # Convert types with proper handling - direct assignment on copied DataFrame
     for col, dtype in col_types.items():
         if col in of_data.columns:
-            if dtype == float or (isinstance(dtype, str) and 'float' in str(dtype).lower()):
+            if dtype == float or (
+                isinstance(dtype, str) and "float" in str(dtype).lower()
+            ):
                 # For float columns, use pd.to_numeric which handles NaN properly
-                of_data[col] = pd.to_numeric(of_data[col], errors='coerce')
-            elif dtype == str or dtype == 'str':
+                of_data[col] = pd.to_numeric(of_data[col], errors="coerce")
+            elif dtype == str or dtype == "str":
                 # Convert to string, replacing NaN with empty string
-                of_data[col] = of_data[col].astype(str).replace('nan', '').replace('None', '')
+                of_data[col] = (
+                    of_data[col].astype(str).replace("nan", "").replace("None", "")
+                )
             else:
                 try:
                     of_data[col] = of_data[col].astype(dtype)
                 except (ValueError, TypeError) as e:
                     logger.warning(f"Could not convert column {col} to {dtype}: {e}")
-    
+
     return of_data
 
 

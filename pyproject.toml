@@ -6,22 +6,23 @@ authors = [{ name = "Tom Marshall", email = "tom.q.marshall@gmail.com" }]
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.12"
-dynamic = ["dependencies"]
+dependencies = [
+    "requests>=2.32.0",
+    "pandas>=2.2.2",
+    "pyyaml>=6.0.1",
+    "thefuzz>=0.22.1",
+    "geopy>=2.4.1",
+    "beautifulsoup4>=4.12.3",
+    "selenium>=4.21.0",
+    "geonames>=0.1.3",
+    "wikipedia>=1.4.0",
+    "docopt>=0.6.2",
+    "html5lib>=1.1",
+    "lxml>=6.0.2",
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-requests = "^2.32.0"
-pandas = "^2.2.2"
-pyyaml = "^6.0.1"
-thefuzz = "^0.22.1"
-geopy = "^2.4.1"
-beautifulsoup4 = "^4.12.3"
-selenium = "^4.21.0"
-geonames = "^0.1.3"
-wikipedia = "^1.4.0"
-docopt = "^0.6.2"
-html5lib = "^1.1"
-lxml = "^6.0.2"
 
 
 [build-system]

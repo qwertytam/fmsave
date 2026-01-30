@@ -161,35 +161,37 @@ def get_keys_and_parents(d: dict[str, Any], value: Any) -> list[Any]:
     return res
 
 
-def _extract_parents_from_nested(lst: list[Any], parents: list[str] | None = None) -> list[str]:
+def _extract_parents_from_nested(
+    lst: list[Any], parents: list[str] | None = None
+) -> list[str]:
     """
     Extract parent keys from nested list structure returned by get_keys_and_parents.
-    
+
     For a structure like ['airports', ['columns', ['time_dep', ['data']], ['time_arr', ['data']]]]
     this returns ['time_dep', 'time_arr'] - the keys whose children contain the searched value.
-    
+
     Args:
         lst: Nested list from get_keys_and_parents
         parents: Accumulated parent keys (used in recursion)
-        
+
     Returns:
         List of parent keys that contain the searched value
     """
     if parents is None:
         parents = []
-    
-    result = []
-    
+
+    result: list[str] = []
+
     if not isinstance(lst, list) or len(lst) == 0:
         return result
-    
+
     # Check if this is a leaf node [key] where key is a string
     if len(lst) == 1 and isinstance(lst[0], str):
         # This is a terminal [key] - the parent we want is in `parents`
         if parents:
             result.append(parents[-1])
         return result
-    
+
     # Check if first element is a string (a key) followed by nested lists
     if isinstance(lst[0], str):
         key = lst[0]
@@ -203,7 +205,7 @@ def _extract_parents_from_nested(lst: list[Any], parents: list[str] | None = Non
         for item in lst:
             if isinstance(item, list):
                 result.extend(_extract_parents_from_nested(item, parents))
-    
+
     return result
 
 

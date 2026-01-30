@@ -19,13 +19,41 @@ poetry shell
 
 ### 2. Chrome/Chromium Browser
 
-Selenium requires a Chrome or Chromium browser for downloading HTML pages. The default path is:
+Selenium requires a Chrome or Chromium browser for downloading HTML pages. The browser is located automatically or can be configured in several ways.
 
-``` bash
-/Applications/Chromium.app/Contents/MacOS/Chromium
-```
+**Automatic Discovery:**
 
-You can override this by passing the `<chrome_path>` argument to the `dlhtml` command.
+If Chrome, Chromium, or Google Chrome is installed and available in your system PATH, it will be found automatically. No configuration needed.
+
+**Configuration Options (in order of precedence):**
+
+1. **Command line argument:**
+
+   ```bash
+   python fmsave.py dlhtml <username> <path> /path/to/chrome
+   ```
+
+2. **Environment variable:**
+
+   ```bash
+   export FMSAVE_CHROME_PATH=/Applications/Chromium.app/Contents/MacOS/Chromium
+   ```
+
+3. **Config file** (`.fmsaverc` in current directory or home directory):
+
+   ```yaml
+   chrome_path: /Applications/Chromium.app/Contents/MacOS/Chromium
+   ```
+
+**Common Chrome/Chromium paths:**
+
+| OS | Browser | Typical Path |
+| --- | --- | --- |
+| macOS | Chromium | `/Applications/Chromium.app/Contents/MacOS/Chromium` |
+| macOS | Chrome | `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` |
+| Linux | Chromium | `/usr/bin/chromium` or `/usr/bin/chromium-browser` |
+| Linux | Chrome | `/usr/bin/google-chrome` |
+| Windows | Chrome | `C:\Program Files\Google\Chrome\Application\chrome.exe` |
 
 ### 3. GeoNames Account
 
@@ -374,23 +402,40 @@ python fmsave.py export myflightpath ~/flights/data.csv ~/flights/myflightpath.c
 
 ### Selenium/Chrome Issues
 
-**Problem:** `dlhtml` fails with Chrome or Selenium errors
+**Problem:** `dlhtml` fails with "Chrome/Chromium executable not found"
 
 **Solutions:**
 
-1. **Chrome not found:**
+1. **Set Chrome path via environment variable:**
 
    ```bash
-   # Specify custom Chrome path
+   export FMSAVE_CHROME_PATH=/path/to/chrome
+   python fmsave.py dlhtml <username> <path>
+   ```
+
+2. **Create a config file** (`~/.fmsaverc`):
+
+   ```yaml
+   chrome_path: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+   ```
+
+3. **Specify path on command line:**
+
+   ```bash
    python fmsave.py dlhtml <username> <path> /usr/bin/google-chrome
    ```
 
-2. **Chrome version mismatch:**
-   - Update Chrome/Chromium to latest version
-   - Update dependencies: `poetry update selenium`
+4. **Install Chrome/Chromium in your PATH:**
+   - On macOS: `brew install --cask chromium`
+   - On Linux: `apt install chromium-browser` or `dnf install chromium`
 
-3. **Headless mode issues:**
-   - Edit `src/defaults.py` and modify `CHROME_OPTIONS` if needed
+**Problem:** Chrome version mismatch or Selenium errors
+
+**Solutions:**
+
+1. Update Chrome/Chromium to latest version
+2. Update dependencies: `poetry update selenium`
+3. For headless mode issues, edit `src/defaults.py` and modify `CHROME_OPTIONS`
 
 ---
 

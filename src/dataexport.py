@@ -66,15 +66,15 @@ def get_openflights_data(
                 isinstance(dtype, str) and "float" in str(dtype).lower()
             ):
                 # For float columns, use pd.to_numeric which handles NaN properly
-                of_data[col] = pd.to_numeric(of_data[col], errors="coerce")
+                of_data.loc[:, col] = pd.to_numeric(of_data[col], errors="coerce")
             elif dtype is str or dtype == "str":
                 # Convert to string, replacing NaN with empty string
-                of_data[col] = (
+                of_data.loc[:, col] = (
                     of_data[col].astype(str).replace("nan", "").replace("None", "")
                 )
             else:
                 try:
-                    of_data[col] = of_data[col].astype(cast(type, dtype))
+                    of_data.loc[:, col] = of_data[col].astype(cast(type, dtype))
                 except (ValueError, TypeError) as e:
                     logger.warning(f"Could not convert column {col} to {dtype}: {e}")
 

@@ -605,14 +605,14 @@ class FMDownloader:
             col_series = pd.Series(self.df.loc[~time_is_empty, col]).astype(str)
             self.df.loc[~time_is_empty, col] = date_series.str.cat(col_series, sep=" ")
 
-            self.df[col] = pd.to_datetime(self.df[col], format="mixed", dayfirst=True)
+            self.df.loc[:, col] = pd.to_datetime(self.df[col], format="mixed", dayfirst=True)
 
-        self.df["date_as_dt"] = pd.to_datetime(
+        self.df.loc[:, "date_as_dt"] = pd.to_datetime(
             self.df["date"], format="mixed", dayfirst=True
         )
 
         self.df.loc[:, "date_offset"] = self.df["date_offset"].fillna("0")
-        self.df["date_offset"] = pd.to_timedelta(
+        self.df.loc[:, "date_offset"] = pd.to_timedelta(
             pd.to_numeric(self.df["date_offset"]), unit="days"
         )
         self.df.loc[:, "time_arr"] = self.df["time_arr"] + self.df["date_offset"]
@@ -1294,13 +1294,13 @@ class FMDownloader:
 
         for col in datetime_cols:
             if col in self.df.columns:
-                self.df[col] = pd.to_datetime(
+                self.df.loc[:, col] = pd.to_datetime(
                     self.df[col], format="mixed", dayfirst=False, errors="coerce"
                 )
 
         for col in timedelata_cols:
             if col in self.df.columns:
-                self.df[col] = pd.to_timedelta(self.df[col], errors="coerce")
+                self.df.loc[:, col] = pd.to_timedelta(self.df[col], errors="coerce")
 
         self.logger.debug("Have read in csv; df types:\n%s", self.df.dtypes)
 
@@ -1481,18 +1481,18 @@ class FMDownloader:
         # Handle Duration column - check if it's a timedelta type
         if "Duration" in exp_df.columns:
             if pd.api.types.is_timedelta64_dtype(exp_df["Duration"]):
-                exp_df["Duration"] = (
+                exp_df.loc[:, "Duration"] = (
                     exp_df["Duration"].dt.to_pytimedelta().astype("str")
                 )
             else:
                 # If Duration is already a string (e.g., loaded from CSV), convert via timedelta
-                exp_df["Duration"] = (
+                exp_df.loc[:, "Duration"] = (
                     pd.to_timedelta(exp_df["Duration"], errors="coerce")
                     .dt.to_pytimedelta()
                     .astype("str")
                 )
 
-        exp_df["Distance"] = exp_df["Distance"].apply(utils.km_to_miles).astype("int64")
+        exp_df.loc[:, "Distance"] = exp_df["Distance"].apply(utils.km_to_miles).astype("int64")
         exp_df["Class"] = exp_df["Class"].replace(lookups.CLASS_OPENFLIGHTS_LU)
         exp_df["Reason"] = exp_df["Reason"].replace(lookups.REASON_OPENFLIGHTS_LU)
         exp_df["Seat_Type"] = exp_df["Seat_Type"].replace(lookups.SEAT_OPENFLIGHTS_LU)
